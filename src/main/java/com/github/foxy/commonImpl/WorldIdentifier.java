@@ -153,7 +153,12 @@ public final class WorldIdentifier {
             while (in.hasNext()) {
                 switch (in.nextName()) {
                     case "namespace" -> namespace = in.nextString();
-                    case "dimension" -> dimension = new ResourceLocation(in.nextString());
+                    case "dimension" -> {
+                        // tryParse over the deprecated raw-string constructor; on a
+                        // malformed value we fall back to the OVERWORLD default.
+                        ResourceLocation parsed = ResourceLocation.tryParse(in.nextString());
+                        if (parsed != null) dimension = parsed;
+                    }
                     case "biomeSeed" -> biomeSeed = in.nextLong();
                     default -> in.skipValue();
                 }

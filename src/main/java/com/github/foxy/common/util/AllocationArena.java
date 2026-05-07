@@ -1,211 +1,215 @@
 package com.github.foxy.common.util;
 
-import it.unimi.dsi.fastutil.longs.LongRBTreeSet;
+import java.util.NavigableSet;
+import java.util.TreeMap;
+import java.util.TreeSet;
 
-//FIXME: NOTE: if there is a free block of size > 2^30 EVERYTHING BREAKS, need to either increase size
-// or automatically split and manage multiple blocks which is very painful
-//OR instead of addr, defer to a long[] and use indicies
+/**
+ * Best-fit free-list allocator over a single linear address space.
+ *
+ * <h2>What it does</h2>
+ * <p>The arena hands out non-overlapping {@code [addr, addr + size)} ranges and tracks
+ * which are currently allocated. Successive {@link #alloc(long)} calls fit into the
+ * smallest free hole large enough; {@link #free(long)} returns the range to the free
+ * list and immediately merges with adjacent free neighbours. {@link #expand(long, long)}
+ * grows an existing allocation in place when the next byte is free.</p>
+ *
+ * <h2>Backing data structures</h2>
+ * The implementation keeps two synchronized indices over the free list:
+ * <ul>
+ *   <li>{@link #freeByAddr} &mdash; addr &rarr; size, ordered by address. Used for
+ *       merge-on-free lookups and for {@link #expand}.</li>
+ *   <li>{@link #freeBySize} &mdash; size &rarr; sorted set of addrs. Used for best-fit
+ *       lookups in {@link #alloc}: pick the smallest size &ge; request.</li>
+ * </ul>
+ * Plus a flat {@link #takenByAddr} that maps addr &rarr; size for taken ranges, so
+ * {@link #free} and {@link #expand} can validate their input.
+ *
+ * <h2>Cleanroom note</h2>
+ * Upstream Voxy hand-packs (addr, size) into single longs and walks one
+ * {@code LongRBTreeSet}. That is more cache-friendly but limits per-allocation size to
+ * 2&sup3;&sup0; bytes and is harder to audit. The Foxy port trades a few extra heap
+ * objects per free block for a straightforward TreeMap-of-TreeSet design; we can swap in
+ * the bit-packed variant later if profiling shows it matters.
+ */
+public final class AllocationArena {
+    /** Returned by {@link #alloc(long)} when the request would exceed {@link #setLimit}. */
+    public static final long SIZE_LIMIT = -1L;
 
-//TODO: replace the LongAVLTreeSet with a custom implementation that doesnt cause allocations when searching
-// and see if something like a RBTree is any better
-public class AllocationArena {
-    public static final long SIZE_LIMIT = -1;
+    /** addr → size, ordered by address; merge-on-free uses {@link TreeMap#floorEntry}. */
+    private final TreeMap<Long, Long> freeByAddr = new TreeMap<>();
 
-    private static final int ADDR_BITS = 34;//This gives max size per allocation of 2^30 and max address of 2^39
-    private static final int SIZE_BITS = 64 - ADDR_BITS;
-    private static final long SIZE_MSK = (1L<<SIZE_BITS)-1;
-    private static final long ADDR_MSK = (1L<<ADDR_BITS)-1;
-    private final LongRBTreeSet FREE = new LongRBTreeSet(Long::compareUnsigned);//Size Address
-    private final LongRBTreeSet TAKEN = new LongRBTreeSet(Long::compareUnsigned);//Address Size
+    /** size → set of addrs sharing that size; best-fit uses {@link TreeMap#ceilingKey}. */
+    private final TreeMap<Long, NavigableSet<Long>> freeBySize = new TreeMap<>();
+
+    /** addr → size for currently-allocated ranges. */
+    private final TreeMap<Long, Long> takenByAddr = new TreeMap<>();
 
     private long sizeLimit = Long.MAX_VALUE;
     private long totalSize;
-    //Flags
-    private boolean resized;//If the required memory of the entire buffer grew
+    private boolean resized;
 
+    /** Drops every allocation, taken or free, and resets the size limit to unbounded. */
     public void reset() {
-        this.FREE.clear();
-        this.TAKEN.clear();
+        this.freeByAddr.clear();
+        this.freeBySize.clear();
+        this.takenByAddr.clear();
         this.sizeLimit = Long.MAX_VALUE;
-        this.totalSize = 0;
+        this.totalSize = 0L;
         this.resized = false;
     }
 
-    //Gets and resets the resized flag
+    /** Reads and clears the {@link #resized} flag. */
     public boolean getResetResized() {
-        boolean ret = this.resized;
+        boolean r = this.resized;
         this.resized = false;
-        return ret;
+        return r;
     }
 
-    public long getSize() {
-        return this.totalSize;
+    /** Highest address ever handed out (i.e. peak watermark + free-block tail). */
+    public long getSize() { return this.totalSize; }
+
+    /** Sets a hard ceiling on {@link #getSize()}; allocations past this return {@link #SIZE_LIMIT}. */
+    public void setLimit(long size) {
+        if (size < this.totalSize) {
+            throw new IllegalStateException("New size limit smaller than current totalSize");
+        }
+        this.sizeLimit = size;
     }
 
+    /** Current size limit. */
+    public long getLimit() { return this.sizeLimit; }
 
-    public int numFreeBlocks() {
-        return this.FREE.size();
-    }
+    /** Number of distinct free regions (i.e. external fragmentation count). */
+    public int numFreeBlocks() { return this.freeByAddr.size(); }
 
-    public int getLargestFreeBlockSize(int index) {
-        var iter = this.FREE.tailSet(-1).iterator();
-        for (;index>0&&iter.hasPrevious();index--){iter.previousLong();}
-        long slot = iter.previousLong();
-        return (int) (slot>>ADDR_BITS);
-    }
+    /**
+     * Allocates {@code size} bytes; returns the address or {@link #SIZE_LIMIT} when no
+     * fitting free block exists and the size cap would be exceeded by growing.
+     */
+    public long alloc(long size) {
+        if (size <= 0L) throw new IllegalArgumentException("size must be > 0");
 
-    /*
-    public long allocFromLargest(int size) {//Allocates from the largest avalible block, this is useful for expanding later on
-
-    }*/
-
-    public long alloc(int size) {//TODO: add alignment support
-        if (size == 0) throw new IllegalArgumentException();
-        //This is stupid, iterator is not inclusive
-        var iter = this.FREE.iterator(((long) size << ADDR_BITS)-1);
-        if (!iter.hasNext()) {//No free space for allocation
-            //Create new allocation
-            this.resized = true;
-            long addr = this.totalSize;
-            if (this.totalSize+size>this.sizeLimit) {
-                return SIZE_LIMIT;
+        // Best-fit search across the size index: smallest free block ≥ requested size.
+        Long bestSize = this.freeBySize.ceilingKey(size);
+        if (bestSize != null) {
+            NavigableSet<Long> addrs = this.freeBySize.get(bestSize);
+            long addr = addrs.first();
+            removeFreeBlock(addr, bestSize);
+            if (bestSize > size) {
+                // Carve off a smaller free remainder.
+                addFreeBlock(addr + size, bestSize - size);
             }
-            this.totalSize += size;
-            this.TAKEN.add((addr<<SIZE_BITS)|((long) size));
+            this.takenByAddr.put(addr, size);
             return addr;
-        } else {
-            long slot = iter.nextLong();
-            iter.remove();
-            if ((slot >>> ADDR_BITS) == size) {//If the allocation and slot is the same size, just add it to the taken
-                this.TAKEN.add((slot<<SIZE_BITS)|(slot >>> ADDR_BITS));
-            } else {
-                this.TAKEN.add(((slot&ADDR_MSK)<<SIZE_BITS)|size);
-                this.FREE.add((((slot >>> ADDR_BITS)-size)<<ADDR_BITS)|((slot&ADDR_MSK)+size));
-            }
-            //this.resized = false;
-            return slot&ADDR_MSK;
         }
+
+        // No fit in the free list: grow at the tail if room remains under the cap.
+        if (this.totalSize + size > this.sizeLimit) return SIZE_LIMIT;
+        long addr = this.totalSize;
+        this.totalSize += size;
+        this.takenByAddr.put(addr, size);
+        this.resized = true;
+        return addr;
     }
 
-    public int free(long addr) {//Returns size of freed memory
-        addr &= ADDR_MSK;//encase addr stores shit in its upper bits
-        var iter = this.TAKEN.iterator(addr<<SIZE_BITS);//Dont need to include -1 as size != 0
-        long slot = iter.nextLong();
-        if (slot>>SIZE_BITS != addr) {
-            throw new IllegalStateException();
+    /**
+     * Frees the allocation at {@code addr}, merging with adjacent free neighbours.
+     * Returns the size of the freed range.
+     */
+    public long free(long addr) {
+        Long size = this.takenByAddr.remove(addr);
+        if (size == null) {
+            throw new IllegalArgumentException("free() called on unknown address " + addr);
         }
-        long size = slot&SIZE_MSK;
-        iter.remove();
+        long blockAddr = addr;
+        long blockSize = size;
 
-        //Note: if there is a previous entry, it means that it is guaranteed for the ending address to either
-        // be the addr, or indicate a free slot that needs to be merged
-        if (iter.hasPrevious()) {
-            long prevSlot = iter.previousLong();
-            long endAddr = (prevSlot>>>SIZE_BITS) + (prevSlot&SIZE_MSK);
-            if (endAddr != addr) {//It means there is a free slot that needs to get merged into
-                long delta = (addr - endAddr);
-                this.FREE.remove((delta<<ADDR_BITS)|endAddr);//Free the slot to be merged into
-                //Generate a new slot to get put into FREE
-                slot = (endAddr<<SIZE_BITS) | ((slot&SIZE_MSK) + delta);
-            }
-            iter.nextLong();//Need to reset the iter into its state
-        }//If there is no previous it means were at the start of the buffer, we might need to merge with block 0 if we are not block 0
-        else if (!this.FREE.isEmpty()) {// if free is not empty it means we must merge with block of free starting at 0
-            //if (addr != 0)//FIXME: this is very dodgy solution, if addr == 0 it means its impossible for there to be a previous element
-            if (this.FREE.remove(addr<<ADDR_BITS)) {//Attempt to remove block 0, this is very dodgy as it assumes block zero is 0 addr n size
-                slot = addr + size;//slot at address 0 and size of 0 block + new block
-            }
+        // Merge with the predecessor if it ends exactly where we start.
+        var prev = this.freeByAddr.floorEntry(blockAddr - 1);
+        if (prev != null && prev.getKey() + prev.getValue() == blockAddr) {
+            removeFreeBlock(prev.getKey(), prev.getValue());
+            blockAddr = prev.getKey();
+            blockSize += prev.getValue();
         }
 
-        //If there is a next element it is guarenteed to either be the next block, or indicate that there is
-        // a block that needs to be merged into
-        if (iter.hasNext()) {
-            long nextSlot = iter.nextLong();
-            long endAddr = (slot>>>SIZE_BITS) + (slot&SIZE_MSK);
-            if (endAddr != nextSlot>>>SIZE_BITS) {//It means there is a memory block to be merged in FREE
-                long delta = ((nextSlot>>>SIZE_BITS) - endAddr);
-                this.FREE.remove((delta<<ADDR_BITS)|endAddr);
-                slot = (slot&(ADDR_MSK<<SIZE_BITS)) | ((slot&SIZE_MSK) + delta);
-            }
-        }// if there is no next block it means that we have reached the end of the allocation sections and we can shrink the buffer
-        else {
+        // Merge with the successor if it starts exactly where we end.
+        var next = this.freeByAddr.ceilingEntry(addr + size);
+        if (next != null && next.getKey() == blockAddr + blockSize) {
+            removeFreeBlock(next.getKey(), next.getValue());
+            blockSize += next.getValue();
+        }
+
+        // If the merged block runs to the tail of the arena, shrink instead of recording a free.
+        if (blockAddr + blockSize == this.totalSize) {
+            this.totalSize = blockAddr;
             this.resized = true;
-            this.totalSize -= (slot&SIZE_MSK);
-            return (int) size;
+        } else {
+            addFreeBlock(blockAddr, blockSize);
         }
-
-        //this.resized = false;
-        //Need to swap around the slot to be in FREE format
-        slot = (slot>>>SIZE_BITS) | (slot<<ADDR_BITS);
-        this.FREE.add(slot);//Add the free slot into segments
-        return (int) size;
+        return size;
     }
 
-
-
-    //Attempts to expand an allocation, returns true on success
-    public boolean expand(long addr, int extra) {
-        addr &= ADDR_MSK;//encase addr stores shit in its upper bits
-        var iter = this.TAKEN.iterator(addr<<SIZE_BITS);
-        if (!iter.hasNext()) {
-            return false;
+    /**
+     * Tries to grow the allocation at {@code addr} by {@code extra} bytes in place.
+     * Returns {@code true} on success; {@code false} when the immediately following
+     * range isn't a free block large enough to absorb the extension.
+     */
+    public boolean expand(long addr, long extra) {
+        if (extra <= 0L) throw new IllegalArgumentException("extra must be > 0");
+        Long size = this.takenByAddr.get(addr);
+        if (size == null) {
+            throw new IllegalArgumentException("expand() called on unknown address " + addr);
         }
-        long slot = iter.nextLong();
-        if (slot>>SIZE_BITS != addr) {
-            throw new IllegalStateException();
-        }
-        long updatedSlot = (slot & (ADDR_MSK << SIZE_BITS)) | ((slot & SIZE_MSK) + extra);
-        //this.resized = false;
-        if (iter.hasNext()) {
-            long next = iter.nextLong();
-            long endAddr = (slot>>>SIZE_BITS)+(slot&SIZE_MSK);
-            long delta = (next>>>SIZE_BITS) - endAddr;
-            if (extra <= delta) {
-                this.FREE.remove((delta<<ADDR_BITS)|endAddr);//Should assert this
-                iter.previousLong();//FOR SOME REASON NEED  TO DO IT TWICE I HAVE NO IDEA WHY
-                iter.previousLong();
-                iter.remove();//Remove the allocation so it can be updated
-                this.TAKEN.add(updatedSlot);//Update the taken allocation
-                if (extra != delta) {//More space than needed, need to add a new FREE block
-                    this.FREE.add(((delta-extra)<<ADDR_BITS)|(endAddr+extra));
-                }
-                //else There is exactly enough free space, so removing the free block and updating the allocation is enough
-                return true;
-            } else {
-                return false;//Not enough room to expand
+        long endAddr = addr + size;
+
+        // Case 1: there is a free block starting exactly at endAddr — try to consume it.
+        Long nextSize = this.freeByAddr.get(endAddr);
+        if (nextSize != null) {
+            if (nextSize < extra) return false;
+            removeFreeBlock(endAddr, nextSize);
+            if (nextSize > extra) {
+                addFreeBlock(endAddr + extra, nextSize - extra);
             }
-        } else {//We are at the end of the buffer, we can expand as we like
-            if (this.totalSize+extra>this.sizeLimit)//If expanding and we would exceed the size limit, dont resize
-                return false;
-            iter.remove();
-            this.TAKEN.add(updatedSlot);
-            this.totalSize += extra;
-            //this.resized = true;
+            this.takenByAddr.put(addr, size + extra);
             return true;
         }
+
+        // Case 2: this is the last allocation; grow the arena tail if the cap allows.
+        if (endAddr == this.totalSize) {
+            if (this.totalSize + extra > this.sizeLimit) return false;
+            this.totalSize += extra;
+            this.takenByAddr.put(addr, size + extra);
+            this.resized = true;
+            return true;
+        }
+
+        // Otherwise: another taken allocation sits right after this one. Cannot extend.
+        return false;
     }
 
+    /** Returns the size of the allocation at {@code addr}; throws if it isn't taken. */
     public long getSize(long addr) {
-        addr &= ADDR_MSK;
-        var iter = this.TAKEN.iterator(addr << SIZE_BITS);
-        if (!iter.hasNext())
-            throw new IllegalArgumentException();
-        long slot = iter.nextLong();
-        if (slot>>SIZE_BITS != addr) {
-            throw new IllegalStateException();
+        Long size = this.takenByAddr.get(addr);
+        if (size == null) {
+            throw new IllegalArgumentException("Unknown allocation at " + addr);
         }
-        return slot&SIZE_MSK;
-    }
-    
-    public void setLimit(long size) {
-        this.sizeLimit = size;
-        if (this.sizeLimit < this.totalSize) {
-            throw new IllegalStateException("Size set smaller than current size");
-        }
+        return size;
     }
 
-    public long getLimit() {
-        return this.sizeLimit;
+    // ---- free-list index maintenance ---------------------------------------------------
+
+    private void addFreeBlock(long addr, long size) {
+        this.freeByAddr.put(addr, size);
+        this.freeBySize.computeIfAbsent(size, k -> new TreeSet<>()).add(addr);
+    }
+
+    private void removeFreeBlock(long addr, long size) {
+        this.freeByAddr.remove(addr);
+        NavigableSet<Long> bucket = this.freeBySize.get(size);
+        if (bucket != null) {
+            bucket.remove(addr);
+            if (bucket.isEmpty()) this.freeBySize.remove(size);
+        }
     }
 }
-

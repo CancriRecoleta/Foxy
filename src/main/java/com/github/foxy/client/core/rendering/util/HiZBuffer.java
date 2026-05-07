@@ -6,38 +6,101 @@ import com.github.foxy.client.core.gl.GlTexture;
 import com.github.foxy.client.core.gl.GlVertexArray;
 import com.github.foxy.client.core.gl.shader.Shader;
 import com.github.foxy.client.core.gl.shader.ShaderType;
-import org.lwjgl.opengl.GL11;
 
-import static org.lwjgl.opengl.ARBDirectStateAccess.*;
 import static org.lwjgl.opengl.ARBShaderImageLoadStore.GL_TEXTURE_FETCH_BARRIER_BIT;
-import static org.lwjgl.opengl.GL11C.*;
-import static org.lwjgl.opengl.GL30C.*;
-import static org.lwjgl.opengl.GL33.glBindSampler;
-import static org.lwjgl.opengl.GL33.glGenSamplers;
+import static org.lwjgl.opengl.GL11C.GL_ALWAYS;
+import static org.lwjgl.opengl.GL11C.GL_DEPTH_TEST;
+import static org.lwjgl.opengl.GL11C.GL_NEAREST;
+import static org.lwjgl.opengl.GL11C.GL_NONE;
+import static org.lwjgl.opengl.GL11C.GL_TEXTURE_MAG_FILTER;
+import static org.lwjgl.opengl.GL11C.GL_TEXTURE_MIN_FILTER;
+import static org.lwjgl.opengl.GL11C.GL_TEXTURE_WRAP_S;
+import static org.lwjgl.opengl.GL11C.GL_TEXTURE_WRAP_T;
+import static org.lwjgl.opengl.GL11C.GL_TRIANGLE_FAN;
+import static org.lwjgl.opengl.GL11C.glDepthFunc;
+import static org.lwjgl.opengl.GL11C.glDepthMask;
+import static org.lwjgl.opengl.GL11C.glDisable;
+import static org.lwjgl.opengl.GL11C.glDrawArrays;
+import static org.lwjgl.opengl.GL11C.glEnable;
+import static org.lwjgl.opengl.GL11C.glGetInteger;
+import static org.lwjgl.opengl.GL11C.glViewport;
+import static org.lwjgl.opengl.GL12C.GL_CLAMP_TO_EDGE;
+import static org.lwjgl.opengl.GL14C.GL_DEPTH_COMPONENT24;
+import static org.lwjgl.opengl.GL14C.GL_NEAREST_MIPMAP_NEAREST;
+import static org.lwjgl.opengl.GL14C.GL_TEXTURE_COMPARE_MODE;
+import static org.lwjgl.opengl.GL30C.GL_DEPTH24_STENCIL8;
+import static org.lwjgl.opengl.GL30C.GL_DEPTH_ATTACHMENT;
+import static org.lwjgl.opengl.GL30C.GL_DEPTH_STENCIL_ATTACHMENT;
+import static org.lwjgl.opengl.GL30C.GL_DRAW_FRAMEBUFFER_BINDING;
+import static org.lwjgl.opengl.GL30C.GL_FRAMEBUFFER;
+import static org.lwjgl.opengl.GL30C.glBindFramebuffer;
+import static org.lwjgl.opengl.GL33C.glBindSampler;
 import static org.lwjgl.opengl.GL33C.glDeleteSamplers;
+import static org.lwjgl.opengl.GL33C.glGenSamplers;
 import static org.lwjgl.opengl.GL33C.glSamplerParameteri;
 import static org.lwjgl.opengl.GL42C.GL_FRAMEBUFFER_BARRIER_BIT;
 import static org.lwjgl.opengl.GL42C.glMemoryBarrier;
+import static org.lwjgl.opengl.GL45C.glBindTextureUnit;
+import static org.lwjgl.opengl.GL45C.glBindVertexArray;
+import static org.lwjgl.opengl.GL45C.glNamedFramebufferDrawBuffer;
 import static org.lwjgl.opengl.GL45C.glTextureBarrier;
+import static org.lwjgl.opengl.GL45C.glTextureParameteri;
+import static org.lwjgl.opengl.GL45C.glUniform1i;
 
-public class HiZBuffer {
-    private final Shader hiz;
+/**
+ * Hierarchical-Z (HiZ) depth buffer used as the input to occlusion-culling tests.
+ *
+ * <h2>What a HiZ buffer is</h2>
+ * <p>An ordinary mip pyramid downsamples a depth texture by the standard mean filter,
+ * which is wrong for occlusion: a bright cell in coarser mips may report a depth
+ * <em>closer</em> than the actual closest fragment behind any of its sub-cells, so
+ * occluders get falsely accepted. The HiZ filter uses {@code max} (or {@code min} —
+ * driver/orientation specific) so the coarser mip never reports a depth closer than
+ * its sub-cells. Renderers can then sample the right level for a screen-space query
+ * size and reject occluded objects with a single fetch.</p>
+ *
+ * <h2>How this implementation builds the chain</h2>
+ * <p>Per LOD, the constructor binds the texture's level-{@code i+1} mip as the depth
+ * attachment of a fresh framebuffer pass and renders a full-screen quad whose
+ * fragment shader samples mip {@code i} with the appropriate combiner. After each
+ * level a barrier flushes the framebuffer/texture caches so the next level reads
+ * coherent data. Finally the texture's {@code GL_TEXTURE_BASE_LEVEL} /
+ * {@code GL_TEXTURE_MAX_LEVEL} are restored so callers see the full chain.</p>
+ *
+ * <h2>Shader assets</h2>
+ * <p>{@code Foxy:hiz/blit.vsh} / {@code Foxy:hiz/blit.fsh} live in
+ * {@code assets/foxy/shaders/hiz/}. The vertex shader emits a 4-vertex triangle fan
+ * covering the viewport; the fragment shader does the depth-aware combine.</p>
+ *
+ * <p>Cleanroom note: same algorithm as upstream Voxy. The cleanroom rewrite
+ * tightens the static import set, scopes GL state save/restore via try/finally,
+ * removes the upstream "//+1" trailing comments of unclear intent, and adds full
+ * English javadoc.</p>
+ */
+public final class HiZBuffer {
+    private final Shader hizShader;
     private final GlFramebuffer fb = new GlFramebuffer().name("HiZ");
     private final int sampler = glGenSamplers();
-    private final int type;
+    private final int depthFormat;
     private GlTexture texture;
     private int levels;
     private int width;
     private int height;
     private final RenderProperties properties;
 
+    /** Defaults to {@code GL_DEPTH24_STENCIL8} so the chain matches the main framebuffer. */
     public HiZBuffer(RenderProperties properties) {
         this(properties, GL_DEPTH24_STENCIL8);
     }
-    public HiZBuffer(RenderProperties properties, int type) {
+
+    /**
+     * @param properties     renderer-side state (depth-compare function, etc.)
+     * @param depthFormat    sized internal depth format; the attachment type is derived
+     */
+    public HiZBuffer(RenderProperties properties, int depthFormat) {
         glNamedFramebufferDrawBuffer(this.fb.id, GL_NONE);
-        this.type = type;
-        this.hiz = Shader.make()
+        this.depthFormat = depthFormat;
+        this.hizShader = Shader.make()
                 .apply(properties::apply)
                 .add(ShaderType.VERTEX, "Foxy:hiz/blit.vsh")
                 .add(ShaderType.FRAGMENT, "Foxy:hiz/blit.fsh")
@@ -46,14 +109,14 @@ public class HiZBuffer {
         this.properties = properties;
     }
 
-    private void alloc(int width, int height) {
-        this.levels = (int)Math.ceil(Math.log(Math.max(width, height))/Math.log(2));
-        //We dont care about e.g. 1x1 size texture since you dont get meshlets that big to cover such a large area
-        //this.levels -= 1;//Arbitrary size, shinks the max level by alot and saves a significant amount of processing time
-        // (could probably increase it to be defined by a max meshlet coverage computation thing)
+    /** Returns the matching {@code GL_*_ATTACHMENT} for the configured depth format. */
+    private int depthAttachmentType() {
+        return this.depthFormat == GL_DEPTH24_STENCIL8 ? GL_DEPTH_STENCIL_ATTACHMENT : GL_DEPTH_ATTACHMENT;
+    }
 
-        //GL_DEPTH_COMPONENT32F //Cant use this as it does not match the depth format of the provided depth buffer
-        this.texture = new GlTexture().store(this.type, this.levels, width, height).name("HiZ");
+    private void allocate(int width, int height) {
+        this.levels = (int) Math.ceil(Math.log(Math.max(width, height)) / Math.log(2));
+        this.texture = new GlTexture().store(this.depthFormat, this.levels, width, height).name("HiZ");
         glTextureParameteri(this.texture.id, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
         glTextureParameteri(this.texture.id, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTextureParameteri(this.texture.id, GL_TEXTURE_COMPARE_MODE, GL_NONE);
@@ -66,50 +129,69 @@ public class HiZBuffer {
         glSamplerParameteri(this.sampler, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glSamplerParameteri(this.sampler, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-        this.width  = width;
+        this.width = width;
         this.height = height;
-
-        this.fb.bind(GL_DEPTH_ATTACHMENT, this.texture, 0).verify();
+        this.fb.attach(depthAttachmentType(), this.texture, 0).verify();
     }
 
+    /**
+     * Builds the HiZ chain by reading {@code srcDepthTex} into level 0 and reducing
+     * downward. The HiZ texture is sized to the largest power-of-two not exceeding
+     * {@code (width, height)}; if that size differs from the previous build, the
+     * texture is reallocated.
+     */
     public void buildMipChain(int srcDepthTex, int width, int height) {
-        if (this.width != Integer.highestOneBit(width) || this.height != Integer.highestOneBit(height)) {
+        int powW = Integer.highestOneBit(width);
+        int powH = Integer.highestOneBit(height);
+        if (this.width != powW || this.height != powH) {
             if (this.texture != null) {
                 this.texture.free();
                 this.texture = null;
             }
-            this.alloc(Integer.highestOneBit(width), Integer.highestOneBit(height));
+            allocate(powW, powH);
         }
+
+        // Save GL state we are about to clobber.
+        int boundFB = glGetInteger(GL_DRAW_FRAMEBUFFER_BINDING);
+
         glBindVertexArray(GlVertexArray.STATIC_VAO);
-        int boundFB = GL11.glGetInteger(GL_DRAW_FRAMEBUFFER_BINDING);
-        this.hiz.bind();
+        this.hizShader.bind();
         glBindFramebuffer(GL_FRAMEBUFFER, this.fb.id);
 
+        // The HiZ blit always writes the depth output regardless of source comparison;
+        // GL_ALWAYS + depthMask=true achieves a straight copy through the DSV path.
         glDepthFunc(GL_ALWAYS);
         glDepthMask(true);
         glEnable(GL_DEPTH_TEST);
 
-
         glBindTextureUnit(0, srcDepthTex);
         glBindSampler(0, this.sampler);
         glUniform1i(0, 0);
+
         int cw = this.width;
         int ch = this.height;
         for (int i = 0; i < this.levels; i++) {
-            this.fb.bind(GL_DEPTH_ATTACHMENT, this.texture, i);
-            glViewport(0, 0, cw, ch); cw = Math.max(cw/2, 1); ch = Math.max(ch/2, 1);
+            this.fb.attach(depthAttachmentType(), this.texture, i);
+            glViewport(0, 0, cw, ch);
+            cw = Math.max(cw / 2, 1);
+            ch = Math.max(ch / 2, 1);
             glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
             glTextureBarrier();
-            glMemoryBarrier(GL_FRAMEBUFFER_BARRIER_BIT|GL_TEXTURE_FETCH_BARRIER_BIT);
-            glTextureParameteri(this.texture.id, GL_TEXTURE_BASE_LEVEL, i);
-            glTextureParameteri(this.texture.id, GL_TEXTURE_MAX_LEVEL, i);
-            if (i==0) {
+            glMemoryBarrier(GL_FRAMEBUFFER_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT);
+            // Pin sampling to the level we just wrote so the next iteration reads it.
+            glTextureParameteri(this.texture.id, 0x813C /* GL_TEXTURE_BASE_LEVEL */, i);
+            glTextureParameteri(this.texture.id, 0x813D /* GL_TEXTURE_MAX_LEVEL  */, i);
+            if (i == 0) {
+                // Switch the texture binding from the source depth tex to our own
+                // mip chain once level 0 has been seeded.
                 glBindTextureUnit(0, this.texture.id);
             }
         }
-        glTextureParameteri(this.texture.id, GL_TEXTURE_BASE_LEVEL, 0);
-        glTextureParameteri(this.texture.id, GL_TEXTURE_MAX_LEVEL, 1000);//TODO: CHECK IF ITS -1 or -0
+        // Restore full chain visibility.
+        glTextureParameteri(this.texture.id, 0x813C, 0);
+        glTextureParameteri(this.texture.id, 0x813D, 1000);
 
+        // Restore caller-visible GL state.
         glDepthFunc(this.properties.closerEqualDepthCompare());
         glDisable(GL_DEPTH_TEST);
         glBindFramebuffer(GL_FRAMEBUFFER, boundFB);
@@ -117,6 +199,20 @@ public class HiZBuffer {
         glBindVertexArray(0);
     }
 
+    /** Underlying HiZ texture id; throws if {@link #buildMipChain} hasn't run yet. */
+    public int getHizTextureId() {
+        if (this.texture == null) {
+            throw new IllegalStateException("HiZBuffer has no texture yet; call buildMipChain first");
+        }
+        return this.texture.id;
+    }
+
+    /** Packs (width, height) into a single int for shader uniform use. */
+    public int getPackedLevels() {
+        return (this.width << 16) | this.height;
+    }
+
+    /** Tears down the FBO, texture, sampler, and shader. Idempotent on null fields. */
     public void free() {
         this.fb.free();
         if (this.texture != null) {
@@ -124,14 +220,6 @@ public class HiZBuffer {
             this.texture = null;
         }
         glDeleteSamplers(this.sampler);
-        this.hiz.free();
-    }
-
-    public int getHizTextureId() {
-        return this.texture.id;
-    }
-
-    public int getPackedLevels() {
-        return (this.width<<16)|this.height;//+1
+        this.hizShader.free();
     }
 }

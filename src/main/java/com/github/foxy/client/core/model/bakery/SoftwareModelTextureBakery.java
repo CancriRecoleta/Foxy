@@ -52,7 +52,9 @@ public class SoftwareModelTextureBakery {
     }
 
     public void setupTexture() {
-        var tex = Minecraft.getInstance().getTextureManager().getTexture(new ResourceLocation("minecraft", "textures/atlas/blocks.png"));
+        // tryBuild over the deprecated 2-arg constructor; the literals always validate.
+        var tex = Minecraft.getInstance().getTextureManager().getTexture(
+                ResourceLocation.tryBuild("minecraft", "textures/atlas/blocks.png"));
 
         int targetMipLevel = 0;// Math.min(tex.getMipLevels(), 4)-1;//todo: we want to target the mip layer that has the 16x16 sized textures
 

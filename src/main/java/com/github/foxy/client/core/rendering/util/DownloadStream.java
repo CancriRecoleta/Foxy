@@ -1,12 +1,12 @@
 package com.github.foxy.client.core.rendering.util;
 
-import it.unimi.dsi.fastutil.longs.LongArrayList;
 import com.github.foxy.client.core.gl.GlBuffer;
 import com.github.foxy.client.core.gl.GlFence;
 import com.github.foxy.client.core.gl.GlPersistentMappedBuffer;
 import com.github.foxy.common.Logger;
 import com.github.foxy.common.util.AllocationArena;
 import com.github.foxy.common.util.MemoryBuffer;
+import it.unimi.dsi.fastutil.longs.LongArrayList;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -14,15 +14,83 @@ import java.util.Deque;
 import java.util.function.Consumer;
 
 import static com.github.foxy.common.util.AllocationArena.SIZE_LIMIT;
-import static org.lwjgl.opengl.GL11.glFinish;
+import static org.lwjgl.opengl.GL11C.glFinish;
 import static org.lwjgl.opengl.GL30C.GL_MAP_READ_BIT;
-import static org.lwjgl.opengl.GL42.GL_BUFFER_UPDATE_BARRIER_BIT;
-import static org.lwjgl.opengl.GL42.glMemoryBarrier;
+import static org.lwjgl.opengl.GL42C.GL_BUFFER_UPDATE_BARRIER_BIT;
+import static org.lwjgl.opengl.GL42C.glMemoryBarrier;
 import static org.lwjgl.opengl.GL44.GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT;
-import static org.lwjgl.opengl.GL45.glCopyNamedBufferSubData;
+import static org.lwjgl.opengl.GL45C.glCopyNamedBufferSubData;
 
-public class DownloadStream {
+/**
+ * GPU&rarr;CPU streaming reader backed by a single persistent-mapped buffer.
+ *
+ * <h2>Pipeline</h2>
+ * <p>Each {@link #download(GlBuffer, long, long, DownloadResultConsumer) download}
+ * call:</p>
+ * <ol>
+ *   <li>reserves {@code size} bytes of staging space from {@link AllocationArena},</li>
+ *   <li>queues a {@code glCopyNamedBufferSubData} from the source GL buffer into that
+ *       staging slot,</li>
+ *   <li>holds the result behind a {@link GlFence} until {@link #tick()} sees the fence
+ *       signal, at which point the caller's {@code resultConsumer} runs against the
+ *       persistent mapping.</li>
+ * </ol>
+ *
+ * <h2>Frame retirement</h2>
+ * <p>Allocations are grouped per call to {@link #commit()}. {@link #tick()} dequeues
+ * the head frame whose fence has signalled, fires its callbacks, and frees its
+ * staging slots. Frames are retired in submission order, since later fences cannot
+ * signal before earlier ones do.</p>
+ *
+ * <h2>Lifecycle</h2>
+ * <p>Initialise the singleton via {@link #init(long)} after the GL context exists
+ * (typically inside Forge's {@code FMLClientSetupEvent}); the legacy
+ * {@code DownloadStream.INSTANCE} field is populated by {@link #init} so existing
+ * upstream call sites keep working.</p>
+ *
+ * <p>Cleanroom note: same algorithmic shape as upstream Voxy. The cleanroom rewrite
+ * lifts the singleton out of static initialisation (which would have triggered GL
+ * traffic at class-load time) and adds full English javadoc; the public method
+ * surface and the {@code INSTANCE} field name are preserved so renderer code that
+ * pre-existed compiles unchanged.</p>
+ */
+public final class DownloadStream {
+
+    /** Single global instance, populated by {@link #init(long)}. */
+    public static volatile DownloadStream INSTANCE;
+
+    /** 32 MiB default; matches upstream's compile-time choice. */
+    public static final long DEFAULT_DOWNLOAD_BUFFER_SIZE = 1L << 25;
+
+    /**
+     * Allocates the singleton with a download buffer of {@code size} bytes. Must run
+     * on the render thread after a GL context exists; idempotency-checked.
+     */
+    public static synchronized DownloadStream init(long size) {
+        if (INSTANCE != null) {
+            throw new IllegalStateException("DownloadStream already initialised");
+        }
+        INSTANCE = new DownloadStream(size);
+        return INSTANCE;
+    }
+
+    /** Convenience: initialise with {@link #DEFAULT_DOWNLOAD_BUFFER_SIZE}. */
+    public static DownloadStream initDefault() { return init(DEFAULT_DOWNLOAD_BUFFER_SIZE); }
+
+    /**
+     * Returns the singleton; throws if {@link #init} hasn't run.
+     * Prefer this over the {@link #INSTANCE} field for new call sites.
+     */
+    public static DownloadStream instance() {
+        DownloadStream s = INSTANCE;
+        if (s == null) throw new IllegalStateException("DownloadStream.init() not yet called");
+        return s;
+    }
+
+    /** Result callback invoked once the download's fence has signalled. */
+    @FunctionalInterface
     public interface DownloadResultConsumer {
+        /** {@code ptr} is valid for {@code size} bytes only inside this call's body. */
         void consume(long ptr, long size);
     }
 
@@ -34,156 +102,188 @@ public class DownloadStream {
     private final Deque<DownloadData> downloadList = new ArrayDeque<>();
     private final ArrayList<DownloadData> thisFrameDownloadList = new ArrayList<>();
 
-    public DownloadStream(long size) {
-        this.downloadBuffer = new GlPersistentMappedBuffer(size, GL_MAP_READ_BIT);//|GL_MAP_COHERENT_BIT
+    /** Cursor into the currently-extending allocation; {@code -1} when none is open. */
+    private long currentAddr = -1L;
+    /** Bytes already reserved in the currently-extending allocation. */
+    private long currentOffset;
+
+    private DownloadStream(long size) {
+        this.downloadBuffer = new GlPersistentMappedBuffer(size, GL_MAP_READ_BIT)
+                .name("foxy.DownloadStream");
         this.allocationArena.setLimit(size);
     }
 
-    private long caddr = -1;
-    private long offset = 0;
+    // ---- public download API ----------------------------------------------------------
 
-    //Pulls the entire buffer from the gpu
-    public void download(GlBuffer buffer, DownloadResultConsumer resultConsumer) {
-        this.download(buffer, 0, buffer.size(), resultConsumer);
+    /** Pulls the entire buffer; result consumer sees a raw native pointer. */
+    public void download(GlBuffer buffer, DownloadResultConsumer consumer) {
+        download(buffer, 0L, buffer.size(), consumer);
     }
 
-    public void download(GlBuffer buffer, Consumer<MemoryBuffer> resultConsumer) {
-        this.download(buffer, 0, buffer.size(), resultConsumer);
+    /** Pulls the entire buffer; result consumer sees a {@link MemoryBuffer} wrapper. */
+    public void download(GlBuffer buffer, Consumer<MemoryBuffer> consumer) {
+        download(buffer, 0L, buffer.size(), consumer);
     }
 
+    /** Pulls a sub-range; result consumer sees a {@link MemoryBuffer} wrapper. */
     public void download(GlBuffer buffer, long downloadOffset, long size, Consumer<MemoryBuffer> consumer) {
-        this.download(buffer, downloadOffset, size, (ptr,size2)-> {
-            consumer.accept(MemoryBuffer.createUntrackedUnfreeableRawFrom(ptr, size));
+        download(buffer, downloadOffset, size, (ptr, sz) -> {
+            consumer.accept(MemoryBuffer.createUntrackedUnfreeableRawFrom(ptr, sz));
         });
     }
 
-    public void download(GlBuffer buffer, long downloadOffset, long size, DownloadResultConsumer resultConsumer) {
+    /**
+     * Pulls a sub-range; result consumer is the raw {@link DownloadResultConsumer}.
+     *
+     * <p>Note the auto-commit at the end: every download call closes the staging slot
+     * immediately so subsequent calls don't accidentally pile onto the same fence.
+     * The TODO from upstream about lifting this auto-commit is preserved for now;
+     * later work can opt in to grouped commits where it pays off.</p>
+     */
+    public void download(GlBuffer buffer, long downloadOffset, long size, DownloadResultConsumer consumer) {
+        if (size <= 0L) throw new IllegalArgumentException("size must be > 0");
         if (size > Integer.MAX_VALUE) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("size " + size + " exceeds Integer.MAX_VALUE");
         }
-        if (size <= 0) {
-            throw new IllegalArgumentException();
-        }
-        if (downloadOffset+size > buffer.size()) {
-            throw new IllegalArgumentException();
+        if (downloadOffset + size > buffer.size()) {
+            throw new IllegalArgumentException("download range [" + downloadOffset + ", "
+                    + (downloadOffset + size) + ") exceeds source buffer size " + buffer.size());
         }
 
+        long addr = reserveStaging(size);
+        this.downloadList.add(new DownloadData(buffer, addr, downloadOffset, size, consumer));
+        commit();
+    }
+
+    private long reserveStaging(long size) {
         long addr;
-        if (this.caddr == -1 || !this.allocationArena.expand(this.caddr, (int) size)) {
-            this.caddr = this.allocationArena.alloc((int) size);//TODO: replace with allocFromLargest
-            if (this.caddr == SIZE_LIMIT) {
-                Logger.warn("Download stream full, preemptively committing, this could cause bad things to happen");
-                this.commit();
+        if (this.currentAddr == -1L || !this.allocationArena.expand(this.currentAddr, size)) {
+            this.currentAddr = this.allocationArena.alloc(size);
+            if (this.currentAddr == SIZE_LIMIT) {
+                Logger.warn("DownloadStream full; preemptively flushing — caller may stall");
+                commit();
                 int attempts = 10;
-                while (--attempts != 0 && this.caddr == SIZE_LIMIT) {
+                while (--attempts != 0 && this.currentAddr == SIZE_LIMIT) {
                     glFinish();
-                    this.tick();
-                    this.caddr = this.allocationArena.alloc((int) size);
+                    tick();
+                    this.currentAddr = this.allocationArena.alloc(size);
                 }
-                if (this.caddr == SIZE_LIMIT) {
-                    throw new IllegalStateException("Could not allocate memory segment big enough for upload even after force flush");
+                if (this.currentAddr == SIZE_LIMIT) {
+                    throw new IllegalStateException("DownloadStream cannot satisfy " + size
+                            + " bytes after force flush");
                 }
             }
-            this.thisFrameAllocations.add(this.caddr);
-            this.offset = size;
-            addr = this.caddr;
-        } else {//Could expand the allocation so just update it
-            addr = this.caddr + this.offset;
-            this.offset += size;
+            this.thisFrameAllocations.add(this.currentAddr);
+            this.currentOffset = size;
+            addr = this.currentAddr;
+        } else {
+            addr = this.currentAddr + this.currentOffset;
+            this.currentOffset += size;
         }
-
-        if (this.caddr + size > this.downloadBuffer.size()) {
-            throw new IllegalStateException();
+        if (this.currentAddr + size > this.downloadBuffer.size()) {
+            throw new IllegalStateException("DownloadStream allocation overflowed staging buffer");
         }
-
-        this.downloadList.add(new DownloadData(buffer, addr, downloadOffset, size, resultConsumer));
-
-        //TODO: maybe not auto-commit
-        this.commit();
+        return addr;
     }
 
+    // ---- commit / tick ---------------------------------------------------------------
 
+    /**
+     * Issues the queued {@code glCopyBufferSubData}s into the staging buffer. Frames
+     * are not yet retired here — that's {@link #tick}'s job — but the GL copy is
+     * pushed so the GPU can start work.
+     */
     public void commit() {
-        if (this.downloadList.isEmpty()) {
-            return;
-        }
+        if (this.downloadList.isEmpty()) return;
+
         glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT);
-        //Copies all the data from target buffers into the download stream
-        for (var entry : this.downloadList) {
-            glCopyNamedBufferSubData(entry.target.id, this.downloadBuffer.id, entry.targetOffset, entry.downloadStreamOffset, entry.size);
+        for (DownloadData entry : this.downloadList) {
+            glCopyNamedBufferSubData(entry.target.id, this.downloadBuffer.id,
+                    entry.targetOffset, entry.downloadStreamOffset, entry.size);
         }
         glMemoryBarrier(GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT | GL_BUFFER_UPDATE_BARRIER_BIT);
+
         this.thisFrameDownloadList.addAll(this.downloadList);
         this.downloadList.clear();
-
-        this.caddr = -1;
-        this.offset = 0;
+        this.currentAddr = -1L;
+        this.currentOffset = 0L;
     }
 
+    /**
+     * Per-frame: commits any pending downloads, snapshots them behind a fence, and
+     * retires every signalled frame at the head of the queue (firing its callbacks
+     * and freeing its staging slots).
+     */
     public void tick() {
-        this.commit();
+        commit();
         if (!this.thisFrameAllocations.isEmpty()) {
-            this.frames.add(new DownloadFrame(new GlFence(), new LongArrayList(this.thisFrameAllocations), new ArrayList<>(this.thisFrameDownloadList)));
+            this.frames.add(new DownloadFrame(
+                    new GlFence(),
+                    new LongArrayList(this.thisFrameAllocations),
+                    new ArrayList<>(this.thisFrameDownloadList)));
             this.thisFrameAllocations.clear();
             this.thisFrameDownloadList.clear();
         }
 
+        // Frames are queued in submission order; once we hit an unsignalled fence
+        // every later frame is also still in flight.
         while (!this.frames.isEmpty()) {
-            //Since the ordering of frames is the ordering of the gl commands if we encounter an unsignaled fence
-            // all the other fences should also be unsignaled
-            if (!this.frames.peek().fence.signaled()) {
-                break;
+            DownloadFrame head = this.frames.peek();
+            if (!head.fence.signaled()) break;
+            this.frames.pop();
+            for (DownloadData data : head.data) {
+                data.resultConsumer.consume(
+                        this.downloadBuffer.addr() + data.downloadStreamOffset,
+                        data.size);
             }
-
-            //Release all the allocations from the frame
-            var frame = this.frames.pop();
-
-            //Apply all the callbacks
-            for (var data : frame.data) {
-                data.resultConsumer.consume(this.downloadBuffer.addr() + data.downloadStreamOffset, data.size);
-            }
-
-            frame.allocations.forEach(this.allocationArena::free);
-            frame.fence.free();
+            head.allocations.forEach(this.allocationArena::free);
+            head.fence.free();
         }
     }
 
-    //Synchonize force flushes everything
+    /**
+     * Forces every queued download to drain. Spins until every fence signals. Used by
+     * shutdown paths that need to ensure no GPU work is still touching the staging
+     * buffer before it gets unmapped.
+     */
     public void waitDiscard() {
         glFinish();
-        var fence = new GlFence();
+        GlFence sentinel = new GlFence();
         glFinish();
-        while (!fence.signaled())
-            Thread.onSpinWait();
-        fence.free();
+        while (!sentinel.signaled()) Thread.onSpinWait();
+        sentinel.free();
         while (!this.frames.isEmpty()) {
-            var frame = this.frames.pop();
+            DownloadFrame frame = this.frames.pop();
             while (!frame.fence.signaled()) Thread.onSpinWait();
             frame.allocations.forEach(this.allocationArena::free);
             frame.fence.free();
         }
     }
 
+    /**
+     * Equivalent to {@link #waitDiscard} followed by a final {@link #tick} so any
+     * still-pending callbacks fire. Used by the renderer shutdown path.
+     */
     public void flushWaitClear() {
         glFinish();
-        this.tick();
-        var fence = new GlFence();
+        tick();
+        GlFence sentinel = new GlFence();
         glFinish();
-        while (!fence.signaled()) {
+        while (!sentinel.signaled()) {
             glFinish();
             Thread.onSpinWait();
         }
-        fence.free();
-        this.tick();
+        sentinel.free();
+        tick();
         if (!this.frames.isEmpty()) {
-            throw new IllegalStateException();
+            throw new IllegalStateException("DownloadStream had pending frames after flushWaitClear");
         }
     }
 
     private record DownloadFrame(GlFence fence, LongArrayList allocations, ArrayList<DownloadData> data) {}
-    private record DownloadData(GlBuffer target, long downloadStreamOffset, long targetOffset, long size, DownloadResultConsumer resultConsumer) {}
-
-
-    // Global download stream
-    public static final DownloadStream INSTANCE = new DownloadStream(1<<25);//32 mb download buffer
+    private record DownloadData(GlBuffer target,
+                                long downloadStreamOffset,
+                                long targetOffset,
+                                long size,
+                                DownloadResultConsumer resultConsumer) {}
 }

@@ -275,7 +275,12 @@ public class ModelFactory {
         var biomeEntry = this.biomeQueue.poll();
         while (biomeEntry != null) {
             var biomeRegistry = Minecraft.getInstance().level.registryAccess().lookupOrThrow(Registries.BIOME);
-            var mcbiomeEntry = biomeRegistry.get(ResourceKey.create(Registries.BIOME, new ResourceLocation(biomeEntry.biome)));
+            // tryParse over the deprecated raw-string constructor. Malformed stored ids
+            // fall through to mcbiomeEntry == empty and the default-biome branch below.
+            ResourceLocation biomeLoc = ResourceLocation.tryParse(biomeEntry.biome);
+            var mcbiomeEntry = biomeLoc == null
+                    ? java.util.Optional.<net.minecraft.core.Holder.Reference<net.minecraft.world.level.biome.Biome>>empty()
+                    : biomeRegistry.get(ResourceKey.create(Registries.BIOME, biomeLoc));
             if (!mcbiomeEntry.isPresent()) {
                 Logger.error("Could not find biome: " + biomeEntry.biome + " using default");
             }
