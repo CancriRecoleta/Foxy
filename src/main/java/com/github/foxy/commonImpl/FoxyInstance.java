@@ -6,6 +6,7 @@ import com.github.foxy.common.config.section.SectionSerializationStorage;
 import com.github.foxy.common.config.storage.StorageBackend;
 import com.github.foxy.common.config.storage.file.FileStorageBackend;
 import com.github.foxy.common.thread.UnifiedServiceThreadPool;
+import com.github.foxy.common.thread.ServiceManager;
 import com.github.foxy.common.world.WorldEngine;
 import com.github.foxy.common.world.service.MipService;
 import com.github.foxy.common.world.service.SectionSavingService;
@@ -94,6 +95,8 @@ public final class FoxyInstance {
     public boolean isIngestEnabled(WorldIdentifier worldId) { return true; }
 
     public VoxelIngestService getIngestService() { return this.ingestService; }
+
+    public ServiceManager getServiceManager() { return this.threadPool.serviceManager; }
 
     /** Returns the active engine for this instance, building it on first request. */
     public synchronized WorldEngine getOrCreateEngine() {

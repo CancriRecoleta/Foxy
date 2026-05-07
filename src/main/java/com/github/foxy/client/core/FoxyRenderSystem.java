@@ -134,8 +134,8 @@ public class FoxyRenderSystem {
             this.viewportSelector = new ViewportSelector<>(sectionRenderer::createViewport);
 
             {
-                int minSec = Minecraft.getInstance().level.getMinSectionY() >> 5;
-                int maxSec = (Minecraft.getInstance().level.getMaxSectionY() - 1) >> 5;
+                int minSec = Minecraft.getInstance().level.getMinSection() >> 5;
+                int maxSec = (Minecraft.getInstance().level.getMaxSection() - 1) >> 5;
 
                 //Do some very cheeky stuff for MiB
                 if (FoxyCommon.IS_MINE_IN_ABYSS) {//TODO: make this somehow configurable
@@ -298,7 +298,7 @@ public class FoxyRenderSystem {
 
         GPUTiming.INSTANCE.tick();
 
-        glBindFramebuffer(GlConst.GL_FRAMEBUFFER, oldFB);
+        glBindFramebuffer(GL_FRAMEBUFFER, oldFB);
         glViewport(dims[0], dims[1], dims[2], dims[3]);
 
         {//Reset state manager stuffs
@@ -308,9 +308,9 @@ public class FoxyRenderSystem {
 
             GlStateManager._glBindVertexArray(0);//Clear binding
 
-            GlStateManager._activeTexture(GlConst.GL_TEXTURE1);
+            GlStateManager._activeTexture(GL_TEXTURE1);
             for (int i = 0; i < 12; i++) {
-                GlStateManager._activeTexture(GlConst.GL_TEXTURE0+i);
+                GlStateManager._activeTexture(GL_TEXTURE0+i);
                 GlStateManager._bindTexture(0);
                 glBindSampler(i, 0);
             }
@@ -417,7 +417,7 @@ public class FoxyRenderSystem {
     private static float getGameFoV() {
         var client = Minecraft.getInstance();
         var gameRenderer = client.gameRenderer;
-        return gameRenderer.getFov(gameRenderer.getMainCamera(), client.getDeltaTracker().getGameTimeDeltaPartialTick(true), true);
+        return (float) client.options.fov().get().intValue();
     }
 
     private static Matrix4f computeProjectionMat(RenderProperties properties, Matrix4fc base) {

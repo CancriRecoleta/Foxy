@@ -4,6 +4,7 @@ import static org.lwjgl.opengl.GL33.glBindSampler;
 import static org.lwjgl.opengl.GL45.glBindTextureUnit;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.resources.ResourceLocation;
 
 public class LightMapHelper {
     public static void bind(int lightingIndex) {
@@ -12,6 +13,6 @@ public class LightMapHelper {
     }
 
     public static int getLightmapTextureId() {
-        return ((com.mojang.blaze3d.opengl.GlTexture)(Minecraft.getInstance().gameRenderer.lightTexture().getTextureView().texture())).glId();
+        return Minecraft.getInstance().getTextureManager().getTexture(new ResourceLocation("dynamic/light_map_1")).getId();
     }
 }

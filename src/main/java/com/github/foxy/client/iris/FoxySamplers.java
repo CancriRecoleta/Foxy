@@ -6,6 +6,8 @@ import net.irisshaders.iris.gl.texture.TextureType;
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
 
 public class FoxySamplers {
+    private static final GlSampler FOXY_DEPTH_SAMPLER = new GlSampler(false, true, false, false);
+
     public static void addSamplers(IrisRenderingPipeline pipeline, SamplerHolder samplers) {
         var patchData = ((IGetFoxyPatchData)pipeline).Foxy$getPatchData();
         if (patchData != null) {
@@ -33,7 +35,7 @@ public class FoxySamplers {
                     return 0;
                 }
                 return dt.id;
-            }, ()->GlSampler.MIPPED_NEAREST_NEAREST, opaqueNames);
+            }, FOXY_DEPTH_SAMPLER, opaqueNames);
 
             samplers.addDynamicSampler(TextureType.TEXTURE_2D, () -> {
                 var pipeData = ((IGetIrisFoxyPipelineData)pipeline).Foxy$getPipelineData();
@@ -49,7 +51,7 @@ public class FoxySamplers {
                     return 0;
                 }
                 return dt.id;
-            }, ()->GlSampler.MIPPED_NEAREST_NEAREST, translucentNames);
+            }, FOXY_DEPTH_SAMPLER, translucentNames);
         }
     }
 }

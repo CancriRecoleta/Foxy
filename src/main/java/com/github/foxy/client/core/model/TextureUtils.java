@@ -283,6 +283,10 @@ public class TextureUtils {
     }
 
     private static int linearToSrgbChannel(float value) {
-        return Math.max(0, Math.min(255, Math.round(ColorSRGB.linearToSrgb(value) * 255.0f)));
+        value = Math.max(0.0f, Math.min(1.0f, value));
+        float srgb = value <= 0.0031308f
+                ? value * 12.92f
+                : 1.055f * (float)Math.pow(value, 1.0f / 2.4f) - 0.055f;
+        return Math.max(0, Math.min(255, Math.round(srgb * 255.0f)));
     }
 }

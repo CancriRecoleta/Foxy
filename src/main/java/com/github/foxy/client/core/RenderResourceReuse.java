@@ -8,7 +8,6 @@ import com.github.foxy.client.core.rendering.section.geometry.BasicSectionGeomet
 import com.github.foxy.client.core.rendering.section.geometry.IGeometryData;
 import com.github.foxy.common.Logger;
 import com.github.foxy.common.util.ThreadUtils;
-import com.github.foxy.common.util.TrackedObject;
 import com.github.foxy.commonImpl.FoxyCommon;
 
 import java.util.ArrayList;
@@ -26,8 +25,8 @@ public class RenderResourceReuse {
 
     //Clears and frees any cached resources (used when the entire instance is shutdown)
     public static void clearResources() {
-        MODEL_TEXTURE_CACHE.forEach(TrackedObject::free);
-        GEOMETRY_BUFFER_CACHE.forEach(TrackedObject::free);
+        MODEL_TEXTURE_CACHE.forEach(GlTexture::free);
+        GEOMETRY_BUFFER_CACHE.forEach(GlBuffer::free);
         MODEL_TEXTURE_CACHE.clear();
         GEOMETRY_BUFFER_CACHE.clear();
     }
@@ -36,7 +35,7 @@ public class RenderResourceReuse {
     public static GlTexture getOrCreateModelStoreTextureAtlas() {
         GlTexture atlas = null;
         if (!MODEL_TEXTURE_CACHE.isEmpty()) {
-            atlas = MODEL_TEXTURE_CACHE.removeFirst().zero();
+            atlas = MODEL_TEXTURE_CACHE.remove(0).zero();
         } else {
             atlas = new GlTexture().store(GL_RGBA8,
                         Integer.numberOfTrailingZeros(ModelFactory.MODEL_TEXTURE_SIZE),
@@ -53,7 +52,7 @@ public class RenderResourceReuse {
     static GlBuffer getOrCreateGeometryBuffer() {
         GlBuffer buffer = null;
         if (!GEOMETRY_BUFFER_CACHE.isEmpty()) {
-            buffer = GEOMETRY_BUFFER_CACHE.removeFirst();
+            buffer = GEOMETRY_BUFFER_CACHE.remove(0);
             //Reuse buffer, todo: probably check the geometry size and try upsize if possible
         } else {
             long capacity = getGeometryBufferSize();

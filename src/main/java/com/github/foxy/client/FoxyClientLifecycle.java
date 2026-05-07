@@ -1,6 +1,7 @@
 package com.github.foxy.client;
 
 import com.github.foxy.common.Logger;
+import com.github.foxy.client.core.IGetFoxyRenderSystem;
 import com.github.foxy.commonImpl.FoxyInstance;
 import com.github.foxy.commonImpl.WorldIdentifier;
 import net.minecraft.client.Minecraft;
@@ -46,6 +47,7 @@ public final class FoxyClientLifecycle {
             String namespace = resolveNamespace(mc);
             var id = new WorldIdentifier(namespace, level.dimension(), 0L);
             FoxyInstance.enter(id);
+            ((IGetFoxyRenderSystem) mc.levelRenderer).Foxy$createRenderer();
         } catch (Throwable t) {
             Logger.error("FoxyClientLifecycle: enter failed", t);
         }
@@ -55,6 +57,7 @@ public final class FoxyClientLifecycle {
     @SubscribeEvent
     public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         try {
+            ((IGetFoxyRenderSystem) Minecraft.getInstance().levelRenderer).Foxy$shutdownRenderer();
             FoxyInstance.leave();
         } catch (Throwable t) {
             Logger.error("FoxyClientLifecycle: leave failed", t);

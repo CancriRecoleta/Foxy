@@ -22,6 +22,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.BlockGetter;
@@ -186,7 +187,7 @@ public class ModelFactory {
             } else {
                 blockState = sb.baseState;
             }*/
-            blockState = sb.baseState.getBlock().withPropertiesOf(blockState);
+            blockState = sb.defaultBlockState().getBlock().withPropertiesOf(blockState);
         }
 
         //Before we enqueue the baking of this blockstate, we must check if it has a fluid state associated with it
@@ -274,7 +275,7 @@ public class ModelFactory {
         var biomeEntry = this.biomeQueue.poll();
         while (biomeEntry != null) {
             var biomeRegistry = Minecraft.getInstance().level.registryAccess().lookupOrThrow(Registries.BIOME);
-            var mcbiomeEntry = biomeRegistry.get(new ResourceLocation(biomeEntry.biome));
+            var mcbiomeEntry = biomeRegistry.get(ResourceKey.create(Registries.BIOME, new ResourceLocation(biomeEntry.biome)));
             if (!mcbiomeEntry.isPresent()) {
                 Logger.error("Could not find biome: " + biomeEntry.biome + " using default");
             }
@@ -664,7 +665,7 @@ public class ModelFactory {
     private static int getBlockLightEmission(BlockState state) {
         boolean isEmissive = state.emissiveRendering(new BlockGetter() {
             @Override
-            public @org.jspecify.annotations.Nullable BlockEntity getBlockEntity(BlockPos pos) {
+            public @Nullable BlockEntity getBlockEntity(BlockPos pos) {
                 return null;
             }
 
@@ -684,7 +685,7 @@ public class ModelFactory {
             }
 
             @Override
-            public int getMinY() {
+            public int getMinBuildHeight() {
                 return 0;
             }
         }, BlockPos.ZERO);
@@ -772,7 +773,7 @@ public class ModelFactory {
     }
 
     private static BlockColor getColourProvider(Block block) {
-        return Minecraft.getInstance().getBlockColors().blockColors.byId(BuiltInRegistries.BLOCK.getId(block));
+        return (state, getter, pos, tintIndex) -> Minecraft.getInstance().getBlockColors().getColor(state, getter, pos, tintIndex);
     }
 
     //TODO: add a method to detect biome dependent colours (can do by detecting if getColor is ever called)
@@ -826,7 +827,7 @@ public class ModelFactory {
             }
 
             @Override
-            public int getMinY() {
+            public int getMinBuildHeight() {
                 return 0;
             }
         };
@@ -882,7 +883,7 @@ public class ModelFactory {
             }
 
             @Override
-            public int getMinY() {
+            public int getMinBuildHeight() {
                 return 0;
             }
         };

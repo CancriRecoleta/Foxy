@@ -308,7 +308,6 @@ public class IrisShaderPatch {
 
     private static final Gson GSON = new GsonBuilder()
             .excludeFieldsWithModifiers(Modifier.PRIVATE)
-            .setStrictness(Strictness.LENIENT)
             .create();
 
     public static IrisShaderPatch makePatch(ShaderPack ipack, AbsolutePackPath directory, Function<AbsolutePackPath, String> sourceProvider) {
