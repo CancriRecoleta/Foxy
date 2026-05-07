@@ -22,3 +22,20 @@ mandatory = true
 versionRange = "${minecraft_version_range}"
 ordering = "NONE"
 side = "BOTH"
+
+# Embeddium (Sodium fork for Forge 1.20.1). Mandatory on the client because
+# voxy's renderer is built on top of Sodium's RenderSection / RenderRegionManager.
+[[dependencies."${mod_id}"]]
+modId = "embeddium"
+mandatory = false
+versionRange = "[0.3,1.0)"
+ordering = "BEFORE"
+side = "CLIENT"
+
+# Oculus (Iris fork for Forge 1.20.1). Optional — only needed when shaders are loaded.
+[[dependencies."${mod_id}"]]
+modId = "oculus"
+mandatory = false
+versionRange = "[1.6,2.0)"
+ordering = "BEFORE"
+side = "CLIENT"
