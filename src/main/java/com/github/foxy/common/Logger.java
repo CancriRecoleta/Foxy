@@ -17,8 +17,12 @@ public final class Logger {
     /** Logs at INFO level. */
     public static void info(String msg) { LOG.info(msg); }
 
+    public static void info(Object... parts) { LOG.info(join(parts)); }
+
     /** Logs at WARN level. */
     public static void warn(String msg) { LOG.warn(msg); }
+
+    public static void warn(Object... parts) { LOG.warn(join(parts)); }
 
     /** Logs at ERROR level. */
     public static void error(String msg) { LOG.error(msg); }
@@ -29,4 +33,17 @@ public final class Logger {
     public static void error(Throwable t) { LOG.error(t.getMessage(), t); }
 
     public static void showInHUD(String msg) { info(msg); }
+
+    public static boolean INSERT_CLASS = false;
+    public static boolean SHUTUP_INFO = false;
+    public static boolean SHUTUP = false;
+
+    private static String join(Object... parts) {
+        StringBuilder sb = new StringBuilder();
+        for (Object part : parts) {
+            if (!sb.isEmpty()) sb.append(' ');
+            sb.append(part);
+        }
+        return sb.toString();
+    }
 }

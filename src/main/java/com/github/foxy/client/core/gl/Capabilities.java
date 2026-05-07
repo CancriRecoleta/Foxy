@@ -40,7 +40,7 @@ import static org.lwjgl.opengl.NVXGPUMemoryInfo.GL_GPU_MEMORY_INFO_TOTAL_AVAILAB
  */
 public final class Capabilities {
 
-    private static volatile Capabilities INSTANCE;
+    public static volatile Capabilities INSTANCE;
 
     /** Initialises the singleton from the active GL context. Idempotent. */
     public static synchronized Capabilities init() {
@@ -134,7 +134,7 @@ public final class Capabilities {
         this.nvBarycentric = cap.GL_NV_fragment_shader_barycentric;
 
         // Probing 64-bit-int and subgroup support by extension flags is unreliable on
-        // some drivers — they advertise the extensions but reject the actual GLSL
+        // some drivers 閳?they advertise the extensions but reject the actual GLSL
         // tokens. Compile a tiny stub for each and trust the result.
         this.int64 = compilesOk(ShaderType.COMPUTE, """
                 #version 430

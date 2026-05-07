@@ -38,6 +38,14 @@ public final class PrintfInjector implements IShaderProcessor {
         this.bufferBindingIndex = bufferBindingIndex;
     }
 
+    public PrintfInjector(int bufferSize, int bufferBindingIndex, java.util.function.Consumer<String> callback) {
+        this(bufferSize, bufferBindingIndex);
+    }
+
+    public PrintfInjector(int bufferSize, int bufferBindingIndex, java.util.function.Consumer<String> callback, Runnable preRun) {
+        this(bufferSize, bufferBindingIndex);
+    }
+
     @Override
     public String process(ShaderType type, String source) {
         return source;
@@ -45,6 +53,18 @@ public final class PrintfInjector implements IShaderProcessor {
 
     /** No-op until the download-stream side lands. */
     public void flush() {
+        // intentionally empty
+    }
+
+    public void bind() {
+        // intentionally empty
+    }
+
+    public void download() {
+        // intentionally empty
+    }
+
+    public void free() {
         // intentionally empty
     }
 }

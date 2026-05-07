@@ -118,6 +118,10 @@ public final class GlTexture extends GlObject {
     /** Optional debug label. */
     public GlTexture name(String label) { assertAllocated(); return GlDebug.name(label, this); }
 
+    public static int getCount() { return COUNT.get(); }
+
+    public static long getEstimatedTotalSize() { return ESTIMATED_TOTAL_SIZE.get(); }
+
     /** Allocated width in pixels. */
     public int getWidth() { assertAllocated(); return this.width; }
     /** Allocated height in pixels. */

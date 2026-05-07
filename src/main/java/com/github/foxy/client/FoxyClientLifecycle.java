@@ -38,7 +38,7 @@ public final class FoxyClientLifecycle {
         if (level == null) {
             // Some MP servers fire LoggingIn before the world is fully synchronised.
             // Wait for the first level tick and re-resolve in onWorldLoad fallback;
-            // for now just log and bail — dropping a single join is non-fatal.
+            // for now just log and bail 閳?dropping a single join is non-fatal.
             Logger.warn("FoxyClientLifecycle: LoggingIn fired with null level; skipping enter");
             return;
         }

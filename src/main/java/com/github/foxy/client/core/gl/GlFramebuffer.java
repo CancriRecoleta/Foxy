@@ -38,16 +38,28 @@ public final class GlFramebuffer extends GlObject {
         return attach(attachment, texture, 0);
     }
 
+    public GlFramebuffer bind(int attachment, GlTexture texture) {
+        return attach(attachment, texture);
+    }
+
     /** Attaches the given {@code level} of {@code texture} to {@code attachment}. */
     public GlFramebuffer attach(int attachment, GlTexture texture, int level) {
         glNamedFramebufferTexture(this.id, attachment, texture.id, level);
         return this;
     }
 
+    public GlFramebuffer bind(int attachment, GlTexture texture, int level) {
+        return attach(attachment, texture, level);
+    }
+
     /** Attaches a renderbuffer to {@code attachment}. */
     public GlFramebuffer attach(int attachment, GlRenderBuffer buffer) {
         glNamedFramebufferRenderbuffer(this.id, attachment, GL_RENDERBUFFER, buffer.id);
         return this;
+    }
+
+    public GlFramebuffer bind(int attachment, GlRenderBuffer buffer) {
+        return attach(attachment, buffer);
     }
 
     /** Sets the FBO's draw-buffer list, e.g. {@code GL_COLOR_ATTACHMENT0}. */

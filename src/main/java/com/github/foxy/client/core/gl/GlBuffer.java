@@ -54,6 +54,10 @@ public final class GlBuffer extends GlObject {
         this(size, flags, true);
     }
 
+    public GlBuffer(long size, boolean zero) {
+        this(size, 0, zero);
+    }
+
     /**
      * Allocates a buffer with the given storage {@code flags}; if {@code zero} is
      * {@code true} and the buffer is non-sparse, also memsets it to zero.
@@ -80,6 +84,10 @@ public final class GlBuffer extends GlObject {
 
     /** Buffer size in bytes. */
     public long size() { return this.size; }
+
+    public static int getCount() { return COUNT.get(); }
+
+    public static long getTotalSize() { return TOTAL_SIZE.get(); }
 
     /** Whether this buffer was allocated with {@code GL_SPARSE_STORAGE_BIT_ARB}. */
     public boolean isSparse() { return (this.flags & GL_SPARSE_STORAGE_BIT_ARB) != 0; }

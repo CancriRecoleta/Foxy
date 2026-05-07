@@ -131,6 +131,8 @@ public class MemoryBuffer implements AutoCloseable {
         if (this.freed) throw new IllegalStateException("MemoryBuffer was already freed");
     }
 
+    public boolean isFreed() { return this.freed; }
+
     /** Live owning-buffer count, for diagnostics. */
     public static int liveCount() { return COUNT.get(); }
 

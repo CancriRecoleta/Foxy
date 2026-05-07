@@ -159,7 +159,7 @@ public class Shader extends GlObject {
             return this;
         }
 
-        /** Naïve string-replace applied after defines but before {@code glShaderSource}. */
+        /** Na鑼倂e string-replace applied after defines but before {@code glShaderSource}. */
         public Builder<T> replace(String token, String replacement) {
             this.replacements.put(token, replacement);
             return this;
