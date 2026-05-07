@@ -1,7 +1,9 @@
 package com.github.foxy.common.config.section;
 
 import com.github.foxy.common.Logger;
+import com.github.foxy.common.config.ConfigBuildCtx;
 import com.github.foxy.common.config.storage.StorageBackend;
+import com.github.foxy.common.config.storage.StorageConfig;
 import com.github.foxy.common.util.MemoryBuffer;
 import com.github.foxy.common.world.SaveLoadSystemV1;
 import com.github.foxy.common.world.WorldSection;
@@ -23,6 +25,8 @@ import java.util.function.LongConsumer;
  * <p>Mapping ids and section position iteration delegate straight to the backend.</p>
  */
 public final class SectionSerializationStorage extends SectionStorage {
+
+    public static final int BIGGEST_SERIALIZED_SECTION_SIZE = 32 * 32 * 32 * 8 * 2 + 8;
 
     /** Scratch buffer per worker thread, sized for the largest possible payload. */
     private static final ThreadLocal<MemoryBuffer> SCRATCH = ThreadLocal.withInitial(
@@ -66,5 +70,18 @@ public final class SectionSerializationStorage extends SectionStorage {
     @Override public void close() { this.backend.close(); }
     @Override public void iteratePositions(int level, LongConsumer consumer) {
         this.backend.iteratePositions(level, consumer);
+    }
+
+    public static class Config extends SectionStorageConfig {
+        public StorageConfig storage;
+
+        @Override
+        public SectionStorage build(ConfigBuildCtx ctx) {
+            return new SectionSerializationStorage(this.storage.build(ctx));
+        }
+
+        public static String getConfigTypeName() {
+            return "Serializer";
+        }
     }
 }

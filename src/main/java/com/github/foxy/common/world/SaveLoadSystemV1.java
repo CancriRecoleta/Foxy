@@ -21,7 +21,7 @@ import org.lwjgl.system.MemoryUtil;
  * </pre>
  *
  * <h2>Cleanroom note</h2>
- * Upstream Voxy stores voxels in a Morton (Z-order) interleaving for spatial-locality on
+ * Upstream Foxy stores voxels in a Morton (Z-order) interleaving for spatial-locality on
  * disk. That implementation relies on {@link Integer#compress}/{@link Integer#expand},
  * which are Java 19+ intrinsics and unavailable on the project's Java 17 target. The
  * cleanroom port stores in linear y-major order; on-disk size is unchanged because the

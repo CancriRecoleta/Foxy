@@ -1,8 +1,13 @@
 package com.github.foxy.commonImpl;
 
+import com.google.gson.TypeAdapter;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -77,6 +82,17 @@ public final class WorldIdentifier {
      */
     public String getWorldId() { return this.worldId; }
 
+    public long getLongHash() { return Integer.toUnsignedLong(this.worldId.hashCode()); }
+
+    public static WorldIdentifier of(Level level) {
+        return new WorldIdentifier("default", level.dimension(), 0L);
+    }
+
+    public com.github.foxy.common.world.WorldEngine getOrCreateEngine() {
+        var instance = FoxyInstance.current();
+        return instance == null ? null : instance.getOrCreateEngine(this);
+    }
+
     private static String computeWorldId(String namespace, ResourceKey<Level> levelKey, long biomeSeed) {
         String input = namespace + "|" + levelKey.location().toString() + "|" + biomeSeed;
         try {
@@ -114,5 +130,36 @@ public final class WorldIdentifier {
     public String toString() {
         return "WorldIdentifier[" + this.namespace + ", " + this.levelKey.location()
                 + ", seed=" + this.biomeSeed + ", id=" + this.worldId + "]";
+    }
+
+    public static final class GsonAdapter extends TypeAdapter<WorldIdentifier> {
+        public static final GsonAdapter INSTANCE = new GsonAdapter();
+
+        @Override
+        public void write(JsonWriter out, WorldIdentifier value) throws IOException {
+            out.beginObject();
+            out.name("namespace").value(value.namespace);
+            out.name("dimension").value(value.levelKey.location().toString());
+            out.name("biomeSeed").value(value.biomeSeed);
+            out.endObject();
+        }
+
+        @Override
+        public WorldIdentifier read(JsonReader in) throws IOException {
+            String namespace = "default";
+            ResourceLocation dimension = Level.OVERWORLD.location();
+            long biomeSeed = 0L;
+            in.beginObject();
+            while (in.hasNext()) {
+                switch (in.nextName()) {
+                    case "namespace" -> namespace = in.nextString();
+                    case "dimension" -> dimension = new ResourceLocation(in.nextString());
+                    case "biomeSeed" -> biomeSeed = in.nextLong();
+                    default -> in.skipValue();
+                }
+            }
+            in.endObject();
+            return new WorldIdentifier(namespace, ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION, dimension), biomeSeed);
+        }
     }
 }

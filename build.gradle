@@ -172,6 +172,17 @@ dependencies {
     implementation(jarJar("io.github.llamalad7:mixinextras-forge:0.5.4")) {
         jarJar.ranged(it, "[0.5.4,)")
     }
+
+    implementation "org.lwjgl:lwjgl-lmdb:3.3.1"
+    implementation "org.lwjgl:lwjgl-zstd:3.3.1"
+    runtimeOnly "org.lwjgl:lwjgl-lmdb:3.3.1:natives-windows"
+    runtimeOnly "org.lwjgl:lwjgl-zstd:3.3.1:natives-windows"
+
+    implementation "redis.clients:jedis:5.1.0"
+    implementation "org.rocksdb:rocksdbjni:10.2.1"
+    implementation "org.apache.commons:commons-pool2:2.12.0"
+    implementation "org.lz4:lz4-java:1.8.0"
+    implementation "org.tukaani:xz:1.10"
 }
 
 // This block of code expands all declared replace properties in the specified resource targets.

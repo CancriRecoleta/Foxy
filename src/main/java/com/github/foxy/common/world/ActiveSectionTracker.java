@@ -149,7 +149,7 @@ public final class ActiveSectionTracker {
         WorldSection section = null;
         int status = 0;
 
-        // Try the LRU first — resurrecting an evicted section is far cheaper than reloading.
+        // Try the LRU first 鈥?resurrecting an evicted section is far cheaper than reloading.
         long lruStamp = this.lruLock.writeLock();
         WorldSection evicted = null;
         try {
@@ -184,7 +184,7 @@ public final class ActiveSectionTracker {
                 status = 1;
             }
             if (status == 1) {
-                // No payload — fill with air so the section is in a defined state.
+                // No payload 鈥?fill with air so the section is in a defined state.
                 int sky = 15, block = 0;
                 Arrays.fill(section.data, Mapper.composeMappingId((byte) (sky | (block << 4)), 0, 0));
             }
@@ -258,7 +258,7 @@ public final class ActiveSectionTracker {
 
         if (evicted != null) {
             // Drop the backing array reference for the GC. We deliberately do NOT pool
-            // arrays in this cleanroom port — see WorldSection's class javadoc.
+            // arrays in this cleanroom port 鈥?see WorldSection's class javadoc.
             evicted.data = null;
         }
         this.loadedSections.decrementAndGet();

@@ -3,6 +3,7 @@ package com.github.foxy.common.world;
 import com.github.foxy.common.Logger;
 import com.github.foxy.common.config.section.SectionStorage;
 import com.github.foxy.common.world.other.Mapper;
+import com.github.foxy.commonImpl.FoxyInstance;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.invoke.VarHandle;
@@ -84,9 +85,14 @@ public final class WorldEngine {
 
     /** Single-storage convenience constructor. */
     public WorldEngine(SectionStorage storage) {
+        this(storage, null);
+    }
+
+    public WorldEngine(SectionStorage storage, @Nullable FoxyInstance instance) {
+        this.instanceIn = instance;
         this.storage = storage;
         this.mapper = new Mapper(this.storage);
-        // 6 shard bits → 64 shards; LRU sized by available heap (rough heuristic from upstream).
+        // 6 shard bits 鈫?64 shards; LRU sized by available heap (rough heuristic from upstream).
         int lruCapacity = (Runtime.getRuntime().maxMemory() >= (1L << 32) - (200L << 20)) ? 2048 : 1024;
         this.sectionTracker = new ActiveSectionTracker(6, this.storage::loadSection, lruCapacity, this);
     }
@@ -287,5 +293,5 @@ public final class WorldEngine {
     }
 
     /** May be {@code null}: kept for source-compat with upstream's {@code instanceIn} field. */
-    @Nullable public final Object instanceIn = null;
+    @Nullable public final FoxyInstance instanceIn;
 }

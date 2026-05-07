@@ -26,6 +26,8 @@ public final class FoxyCommon {
     /** {@code true} when running inside a real Forge environment (vs. unit tests). */
     public static final boolean IS_IN_MINECRAFT;
 
+    public static final boolean IS_MINE_IN_ABYSS = false;
+
     static {
         IModInfo info = null;
         try {
@@ -66,5 +68,13 @@ public final class FoxyCommon {
         if (!IS_IN_MINECRAFT) {
             // intentionally empty
         }
+    }
+
+    public static boolean isAvailable() {
+        return IS_IN_MINECRAFT;
+    }
+
+    public static FoxyInstance getInstance() {
+        return FoxyInstance.current();
     }
 }

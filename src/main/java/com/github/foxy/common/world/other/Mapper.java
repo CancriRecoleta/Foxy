@@ -337,7 +337,7 @@ public class Mapper {
             if (state.getBlock() instanceof LeavesBlock) {
                 this.opacity = 15;
             } else {
-                // 1.20.1 BlockBehaviour.getLightBlock(BlockGetter, BlockPos) — call with a
+                // 1.20.1 BlockBehaviour.getLightBlock(BlockGetter, BlockPos) 鈥?call with a
                 // sentinel level/pos because the implementations we care about don't read
                 // either parameter.
                 this.opacity = state.getLightBlock(EmptyBlockGetter.INSTANCE, BlockPos.ZERO);

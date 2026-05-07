@@ -5,8 +5,11 @@ import com.github.foxy.common.Logger;
 import com.github.foxy.common.config.section.SectionSerializationStorage;
 import com.github.foxy.common.config.storage.StorageBackend;
 import com.github.foxy.common.config.storage.file.FileStorageBackend;
+import com.github.foxy.common.thread.UnifiedServiceThreadPool;
 import com.github.foxy.common.world.WorldEngine;
 import com.github.foxy.common.world.service.MipService;
+import com.github.foxy.common.world.service.SectionSavingService;
+import com.github.foxy.common.world.service.VoxelIngestService;
 import net.minecraftforge.fml.loading.FMLPaths;
 import org.jetbrains.annotations.Nullable;
 
@@ -39,6 +42,9 @@ public final class FoxyInstance {
 
     private final WorldIdentifier identifier;
     private final ImportManager importManager = new ImportManager();
+    private final UnifiedServiceThreadPool threadPool = new UnifiedServiceThreadPool();
+    private final SectionSavingService savingService = new SectionSavingService(this.threadPool.serviceManager);
+    private final VoxelIngestService ingestService = new VoxelIngestService(this.threadPool.serviceManager);
     private final Map<WorldIdentifier, WorldEngine> engines = new HashMap<>();
     private final Map<WorldEngine, MipService> mipServices = new HashMap<>();
 
@@ -83,9 +89,19 @@ public final class FoxyInstance {
     /** Shared {@link ImportManager}; owns one importer per engine. */
     public ImportManager importManager() { return this.importManager; }
 
+    public boolean isRunning() { return current == this; }
+
+    public boolean isIngestEnabled(WorldIdentifier worldId) { return true; }
+
+    public VoxelIngestService getIngestService() { return this.ingestService; }
+
     /** Returns the active engine for this instance, building it on first request. */
     public synchronized WorldEngine getOrCreateEngine() {
         return getOrCreateEngine(this.identifier);
+    }
+
+    public synchronized WorldEngine getOrCreate(WorldIdentifier id) {
+        return getOrCreateEngine(id);
     }
 
     /**
@@ -97,6 +113,7 @@ public final class FoxyInstance {
         var engine = this.engines.get(id);
         if (engine != null && engine.isLive()) return engine;
         engine = buildEngine(id);
+        engine.setSaveCallback(this.savingService::enqueueSave);
         this.engines.put(id, engine);
         return engine;
     }
@@ -147,6 +164,9 @@ public final class FoxyInstance {
         }
         this.mipServices.clear();
 
+        try { this.ingestService.shutdown(); } catch (Throwable t) { Logger.error("VoxelIngestService close failed", t); }
+        try { this.savingService.shutdown(); } catch (Throwable t) { Logger.error("SectionSavingService close failed", t); }
+
         for (var engine : this.engines.values()) {
             try {
                 if (engine.isLive()) engine.free();
@@ -155,5 +175,6 @@ public final class FoxyInstance {
             }
         }
         this.engines.clear();
+        try { this.threadPool.shutdown(); } catch (Throwable t) { Logger.error("Service thread pool close failed", t); }
     }
 }

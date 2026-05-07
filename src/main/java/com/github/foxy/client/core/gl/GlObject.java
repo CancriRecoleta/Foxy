@@ -52,8 +52,14 @@ public abstract class GlObject {
         this.freed = true;
     }
 
-    /** Asserts the wrapper is still live; cheap on the hot path. */
-    protected final void assertNotFreed() {
+    /**
+     * Asserts the wrapper is still live; cheap on the hot path.
+     *
+     * <p>Public so callers that just hold a reference (e.g. shader binders) can sanity
+     * check the wrapper before issuing a GL call against the underlying {@code id} field.
+     * Calling on a freed wrapper throws {@link IllegalStateException}.</p>
+     */
+    public final void assertNotFreed() {
         if (this.freed) {
             throw new IllegalStateException("Use-after-free on " + getClass().getSimpleName());
         }

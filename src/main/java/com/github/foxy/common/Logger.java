@@ -25,4 +25,8 @@ public final class Logger {
 
     /** Logs at ERROR level with a throwable. */
     public static void error(String msg, Throwable t) { LOG.error(msg, t); }
+
+    public static void error(Throwable t) { LOG.error(t.getMessage(), t); }
+
+    public static void showInHUD(String msg) { info(msg); }
 }

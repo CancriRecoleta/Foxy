@@ -64,10 +64,10 @@ public final class WorldSection {
 
     /** Population counter; only meaningful at LOD level 0. */
     @SuppressWarnings("unused") // updated via NON_EMPTY_BLOCK
-    private volatile int nonEmptyBlockCount;
+    volatile int nonEmptyBlockCount;
 
     /** Bitmask of which 2&times;2&times;2 child sections are non-empty (renderer hint). */
-    private volatile byte nonEmptyChildren;
+    volatile byte nonEmptyChildren;
 
     final ActiveSectionTracker tracker;
 
@@ -112,7 +112,7 @@ public final class WorldSection {
 
     @Override
     public int hashCode() {
-        // (x * P) + y, then (·) * Q + z, then (·) * R + lvl: standard avalanche-y mix.
+        // (x * P) + y, then (路) * Q + z, then (路) * R + lvl: standard avalanche-y mix.
         return ((x * 1235641 + y) * 8127451 + z) * 918267913 + lvl;
     }
 
@@ -212,7 +212,7 @@ public final class WorldSection {
 
     /** Writes {@code id} at (x, y, z) and returns the previous value. */
     public long set(int x, int y, int z, long id) {
-        // The block-count delta is intentionally not maintained here — upstream defers
+        // The block-count delta is intentionally not maintained here 鈥?upstream defers
         // that to the importer / mip service which know the previous value semantically.
         int idx = getIndex(x, y, z);
         long old = this.data[idx];
@@ -325,9 +325,13 @@ public final class WorldSection {
     /** {@code true} once {@link #trySetFreed()} has succeeded. */
     public boolean isFreed() { return (STATE.get(this) & 1) == 0; }
 
-    private void assertNotFreed() {
+    public void assertNotFree() {
         if (VERIFY_WORLD_SECTION_EXECUTION && isFreed()) {
             throw new IllegalStateException("Use-after-free on " + WorldEngine.pprintPos(this.key));
         }
+    }
+
+    private void assertNotFreed() {
+        assertNotFree();
     }
 }

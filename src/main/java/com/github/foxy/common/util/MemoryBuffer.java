@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * <p>Two static counters expose live-buffer count and total bytes for diagnostics; they
  * are updated for any buffer constructed with the public size constructor.</p>
  */
-public final class MemoryBuffer implements AutoCloseable {
+public class MemoryBuffer implements AutoCloseable {
 
     private static final AtomicInteger COUNT = new AtomicInteger();
     private static final AtomicLong TOTAL_SIZE = new AtomicLong();
@@ -52,10 +52,33 @@ public final class MemoryBuffer implements AutoCloseable {
         return new MemoryBuffer(address, size, false);
     }
 
+    public static MemoryBuffer createUntrackedRawFrom(long address, long size) {
+        return new MemoryBuffer(address, size, true);
+    }
+
+    public static MemoryBuffer createUntrackedUnfreeableRawFrom(long address, long size) {
+        return new MemoryBuffer(address, size, false);
+    }
+
+    public MemoryBuffer createUntrackedUnfreeableReference() {
+        return new MemoryBuffer(this.address, this.size, false);
+    }
+
+    public MemoryBuffer subSize(long size) {
+        if (size > this.size || size <= 0) {
+            throw new IllegalArgumentException("Requested size " + size + " outside buffer capacity " + this.size);
+        }
+        return new MemoryBuffer(this.address, size, false);
+    }
+
     /** Memcpy this buffer's contents to the destination address. */
     public void copyTo(long dst) {
         assertLive();
         MemoryUtil.memCopy(this.address, dst, this.size);
+    }
+
+    public void cpyTo(long dst) {
+        copyTo(dst);
     }
 
     /** Memcpy {@code size} bytes from a source address into this buffer. */
@@ -63,6 +86,10 @@ public final class MemoryBuffer implements AutoCloseable {
         assertLive();
         MemoryUtil.memCopy(src, this.address, this.size);
         return this;
+    }
+
+    public MemoryBuffer cpyFrom(long src) {
+        return copyFrom(src);
     }
 
     /** Allocates a fresh buffer with the same contents and size. */
@@ -107,6 +134,10 @@ public final class MemoryBuffer implements AutoCloseable {
     /** Live owning-buffer count, for diagnostics. */
     public static int liveCount() { return COUNT.get(); }
 
+    public static int getCount() { return liveCount(); }
+
     /** Total bytes held by live owning buffers, for diagnostics. */
     public static long liveBytes() { return TOTAL_SIZE.get(); }
+
+    public static long getTotalSize() { return liveBytes(); }
 }
