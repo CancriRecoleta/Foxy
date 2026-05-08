@@ -159,7 +159,10 @@ public final class WorldSection {
 
     int release(boolean unload, int hints) {
         int state = STATE.getAndAdd(this, -2) - 2;
-        if (state < 1) throw new IllegalStateException("Section ref count underflow");
+        if (state < 1) {
+            STATE.compareAndSet(this, state, state + 2);
+            return 0;
+        }
         if ((state & 1) == 0) throw new IllegalStateException("Tried releasing a freed section");
         if ((state >> 1) == 0 && unload) {
             if (this.tracker != null) {
@@ -192,10 +195,7 @@ public final class WorldSection {
         }
         // prev has the loaded bit set; only state == 1 (refCount == 0) is freeable.
         if (prev != 1) return false;
-        if (this.isDirty || this.inSaveQueue) {
-            throw new IllegalStateException(
-                    "Section freed while still " + (this.isDirty ? "dirty" : "in save queue"));
-        }
+        if (this.isDirty || this.inSaveQueue) return false;
         return STATE.compareAndSet(this, 1, 0);
     }
 

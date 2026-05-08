@@ -1,6 +1,7 @@
 package com.github.foxy.commonImpl;
 
 import com.github.foxy.Foxy;
+import com.github.foxy.client.config.FoxyConfig;
 import com.github.foxy.common.Logger;
 import com.github.foxy.common.StorageConfigUtil;
 import com.github.foxy.common.config.ConfigBuildCtx;
@@ -61,6 +62,7 @@ public final class FoxyInstance {
                 c -> c.version == 1 && c.sectionStorageConfig != null,
                 Config::defaultConfig,
                 this.basePath);
+        this.updateDedicatedThreads();
         Logger.info("Foxy storage base path: " + this.basePath);
     }
 
@@ -107,11 +109,25 @@ public final class FoxyInstance {
 
     public boolean isRunning() { return current == this; }
 
-    public boolean isIngestEnabled(WorldIdentifier worldId) { return true; }
+    public boolean isIngestEnabled(WorldIdentifier worldId) {
+        return FoxyConfig.CONFIG.enabled && FoxyConfig.CONFIG.ingestEnabled;
+    }
 
     public VoxelIngestService getIngestService() { return this.ingestService; }
 
     public ServiceManager getServiceManager() { return this.threadPool.serviceManager; }
+
+    public UnifiedServiceThreadPool getThreadPool() { return this.threadPool; }
+
+    public void updateDedicatedThreads() {
+        this.setNumThreads(Math.max(FoxyConfig.CONFIG.serviceThreads, 0));
+    }
+
+    private void setNumThreads(int threads) {
+        if (this.threadPool.setNumThreads(threads)) {
+            Logger.info("Dedicated Foxy thread pool size: " + threads);
+        }
+    }
 
     /** Returns the active engine for this instance, building it on first request. */
     public synchronized WorldEngine getOrCreateEngine() {

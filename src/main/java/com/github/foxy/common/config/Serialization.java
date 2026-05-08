@@ -22,6 +22,22 @@ import java.util.stream.Stream;
 public class Serialization {
     public static final Set<Class<?>> CONFIG_TYPES = new HashSet<>();
     public static Gson GSON;
+    private static final List<String> FALLBACK_CONFIG_CLASSES = List.of(
+            "com.github.foxy.common.config.section.SectionSerializationStorage$Config",
+            "com.github.foxy.common.config.storage.file.FileStorageBackend$Config",
+            "com.github.foxy.common.config.storage.rocksdb.RocksDBStorageBackend$Config",
+            "com.github.foxy.common.config.storage.redis.RedisStorageBackend$Config",
+            "com.github.foxy.common.config.storage.lmdb.LMDBStorageBackend$Config",
+            "com.github.foxy.common.config.storage.other.BasicPathInsertionConfig",
+            "com.github.foxy.common.config.storage.other.CompressionStorageAdaptor$Config",
+            "com.github.foxy.common.config.storage.other.ConditionalStorageBackendConfig",
+            "com.github.foxy.common.config.storage.other.FragmentedStorageBackendAdaptor$Config",
+            "com.github.foxy.common.config.storage.other.FragmentedStorageBackendAdaptor$Config2",
+            "com.github.foxy.common.config.storage.other.ReadonlyCachingLayer$Config",
+            "com.github.foxy.common.config.compressors.LZ4Compressor$Config",
+            "com.github.foxy.common.config.compressors.LZMACompressor$Config",
+            "com.github.foxy.common.config.compressors.ZSTDCompressor$Config"
+    );
 
     private static final class GsonConfigSerialization <T> implements TypeAdapterFactory {
         private final String typeField = "TYPE";
@@ -96,7 +112,6 @@ public class Serialization {
 
         Set<String> clazzs = new LinkedHashSet<>();
         clazzs.addAll(collectAllClasses(BASE_SEARCH_PACKAGE));
-        int count = 0;
         outer:
         for (var clzName : clazzs) {
             if (FoxyCommon.IS_DEDICATED_SERVER&&clzName.startsWith("com.github.foxy.client")) {
@@ -128,28 +143,19 @@ public class Serialization {
                     //Dont want to register abstract classes
                     continue;
                 }
-                var original = clz;
-                while ((clz = clz.getSuperclass()) != null) {
-                    if (CONFIG_TYPES.contains(clz)) {
-                        Method nameMethod = null;
-                        try {
-                            nameMethod = original.getMethod("getConfigTypeName");
-                            nameMethod.setAccessible(true);
-                        } catch (NoSuchMethodException e) {}
-                        if (nameMethod == null) {
-                            Logger.error("WARNING: Config class " + clzName + " doesnt contain a getConfigTypeName and thus wont be serializable");
-                            continue outer;
-                        }
-                        count++;
-                        String name = (String) nameMethod.invoke(null);
-                        serializers.computeIfAbsent(clz, GsonConfigSerialization::new)
-                                .register(name, (Class) original);
-                        Logger.info("Registered " + original.getSimpleName() + " as " + name + " for config type " + clz.getSimpleName());
-                        break;
-                    }
+                if (!registerConfigType(serializers, clz)) {
+                    Logger.error("WARNING: Config class " + clzName + " doesnt contain a getConfigTypeName and thus wont be serializable");
                 }
             } catch (Throwable e) {
                 Logger.error("Error while setting up config serialization", e);
+            }
+        }
+
+        for (String clzName : FALLBACK_CONFIG_CLASSES) {
+            try {
+                registerConfigType(serializers, Class.forName(clzName));
+            } catch (Throwable e) {
+                Logger.error("Error while registering fallback config class " + clzName, e);
             }
         }
 
@@ -160,7 +166,42 @@ public class Serialization {
         }
 
         GSON = builder.create();
+        int count = serializers.values().stream().mapToInt(s -> s.name2type.size()).sum();
         Logger.info("Registered " + count + " config types");
+    }
+
+    private static boolean registerConfigType(
+            Map<Class<?>, GsonConfigSerialization<?>> serializers,
+            Class<?> original
+    ) throws Exception {
+        var clz = original;
+        while ((clz = clz.getSuperclass()) != null) {
+            if (CONFIG_TYPES.contains(clz)) {
+                Method nameMethod;
+                try {
+                    nameMethod = original.getMethod("getConfigTypeName");
+                    nameMethod.setAccessible(true);
+                } catch (NoSuchMethodException e) {
+                    return false;
+                }
+                String name = (String) nameMethod.invoke(null);
+                var serializer = serializers.computeIfAbsent(clz, GsonConfigSerialization::new);
+                if (serializer.type2name.containsKey(original)) {
+                    return true;
+                }
+                var existing = serializer.name2type.get(name);
+                if (existing != null) {
+                    if (existing == original) {
+                        return true;
+                    }
+                    throw new IllegalStateException("Type name already registered: " + name);
+                }
+                serializer.register(name, (Class) original);
+                Logger.info("Registered " + original.getSimpleName() + " as " + name + " for config type " + clz.getSimpleName());
+                return true;
+            }
+        }
+        return true;
     }
 
     private static List<String> collectAllClasses(String pack) {

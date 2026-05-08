@@ -34,9 +34,10 @@ import java.util.stream.Stream;
  * without dir_index, NTFS without 8.3-name disable, etc.).
  *
  * <h2>Atomicity</h2>
- * Every write goes to a sibling {@code .tmp} file and is then moved into place with
+ * Every write goes to a unique sibling temp file and is then moved into place with
  * {@link StandardCopyOption#ATOMIC_MOVE}. A torn write therefore at worst leaves a
- * stray {@code .tmp} that the next startup can sweep; it never corrupts a stored entry.
+ * stray temp file that the normal {@code .dat} enumerators ignore; it never corrupts
+ * a stored entry or collides with another writer targeting the same section.
  *
  * <h2>Suitability</h2>
  * No native dependencies, trivially correct, and adequate for development /
@@ -119,11 +120,11 @@ public final class FileStorageBackend extends StorageBackend {
      * then move it onto {@code target}. The parent directory is created lazily.
      */
     private static void atomicWrite(Path target, long src, long size) throws IOException {
-        Files.createDirectories(target.getParent());
-        Path tmp = target.resolveSibling(target.getFileName().toString() + TMP_EXT);
+        Path parent = target.getParent();
+        Files.createDirectories(parent);
+        Path tmp = Files.createTempFile(parent, target.getFileName().toString() + ".", TMP_EXT);
         try (FileChannel ch = FileChannel.open(tmp,
                 StandardOpenOption.WRITE,
-                StandardOpenOption.CREATE,
                 StandardOpenOption.TRUNCATE_EXISTING)) {
             ByteBuffer bb = MemoryUtil.memByteBuffer(src, (int) Math.min(size, Integer.MAX_VALUE));
             while (bb.hasRemaining()) ch.write(bb);
@@ -135,6 +136,8 @@ public final class FileStorageBackend extends StorageBackend {
             // across attribute boundaries. Fall back to non-atomic replace; we accept
             // the (very narrow) torn-write window because the alternative is a hard fail.
             Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
+        } finally {
+            Files.deleteIfExists(tmp);
         }
     }
 

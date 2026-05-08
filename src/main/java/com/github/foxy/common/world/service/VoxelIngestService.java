@@ -26,6 +26,7 @@ public class VoxelIngestService {
     private final Service service;
     private record IngestSection(int cx, int cy, int cz, WorldEngine world, LevelChunkSection section, DataLayer blockLight, DataLayer skyLight){}
     private final ConcurrentLinkedDeque<IngestSection> ingestQueue = new ConcurrentLinkedDeque<>();
+    private final Object ingestLock = new Object();
 
     public VoxelIngestService(ServiceManager pool) {
         this.service = pool.createServiceNoCleanup(()->this::processJob, 5000, "Ingest service");
@@ -33,6 +34,12 @@ public class VoxelIngestService {
 
     private void processJob() {
         var task = this.ingestQueue.pop();
+        synchronized (this.ingestLock) {
+            processJobLocked(task);
+        }
+    }
+
+    private void processJobLocked(IngestSection task) {
         task.world.markActive();
 
         var section = task.section;

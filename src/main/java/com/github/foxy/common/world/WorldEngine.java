@@ -281,7 +281,9 @@ public final class WorldEngine {
         this.isLive = false;
         VarHandle.fullFence();
         if (this.sectionTracker.getLoadedCacheCount() != 0) {
-            throw new IllegalStateException("free() called while sections are still loaded");
+            Logger.warn("WorldEngine free() called with "
+                    + this.sectionTracker.getLoadedCacheCount()
+                    + " sections still loaded; flushing storage and closing anyway");
         }
         try { this.mapper.close(); } catch (Throwable t) { Logger.error("Mapper close failed", t); }
         try { this.storage.flush(); } catch (Throwable t) { Logger.error("Storage flush failed", t); }

@@ -15,8 +15,10 @@
     "iris.IrisRenderingPipelineAccessor",
     "iris.IrisSamplersMixin",
     "iris.ProgramSetMixin",
+    "sodium.ChunkJobQueueMixin",
     "sodium.DefaultChunkRendererMixin",
-    "sodium.RenderSectionManagerMixin"
+    "sodium.RenderSectionManagerMixin",
+    "sodium.SodiumWorldRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1

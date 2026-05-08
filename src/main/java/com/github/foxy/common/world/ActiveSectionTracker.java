@@ -122,9 +122,19 @@ public final class ActiveSectionTracker {
         try {
             var existing = shard.get(key);
             if (existing != null) {
-                future = existing;
-                isLoader = false;
-            } else {
+                if (existing.isDone() && !existing.isCompletedExceptionally()) {
+                    var section = existing.getNow(null);
+                    if (section != null && section.tryAcquire()) {
+                        return section;
+                    }
+                    shard.remove(key);
+                } else {
+                    future = existing;
+                    isLoader = false;
+                    return waitForLoadedSection(future, key);
+                }
+            }
+            {
                 future = new CompletableFuture<>();
                 shard.put(key, future);
                 isLoader = true;
@@ -138,9 +148,15 @@ public final class ActiveSectionTracker {
         }
 
         // Waiter path: block on the loader's future, then bump the ref count.
+        return waitForLoadedSection(future, key);
+    }
+
+    private WorldSection waitForLoadedSection(CompletableFuture<WorldSection> future, long key) {
         WorldSection section = future.join();
         if (section == null) return null; // loader returned a "no payload + nullOnEmpty" miss
-        section.acquire();
+        if (!section.tryAcquire()) {
+            return acquire(key, false);
+        }
         return section;
     }
 
@@ -228,6 +244,7 @@ public final class ActiveSectionTracker {
             }
         }
         if (section.getRefCount() != 0) return;
+        if (section.isDirty || section.inSaveQueue) return;
 
         int shardIdx = shardFor(section.key);
         var shard = this.liveCache[shardIdx];
@@ -238,6 +255,7 @@ public final class ActiveSectionTracker {
         try {
             // Re-check under the shard lock: another thread may have grabbed a ref.
             if (section.getRefCount() != 0) return;
+            if (section.isDirty || section.inSaveQueue) return;
             if (!section.trySetFreed()) return;
             shard.remove(section.key);
 

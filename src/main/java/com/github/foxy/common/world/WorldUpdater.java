@@ -61,7 +61,11 @@ public class WorldUpdater {
                     neighbors |= ((section.z^(section.z+1))>>(lvl+1))==0?0:1<<5;//+z
                 }
 
-                into.markDirty(worldSection, (didStateChange?UPDATE_TYPE_BLOCK_BIT:0)|(emptinessStateChange!=0?UPDATE_TYPE_CHILD_EXISTENCE_BIT:0), neighbors);
+                int updateFlags = (didStateChange?UPDATE_TYPE_BLOCK_BIT:0)|(emptinessStateChange!=0?UPDATE_TYPE_CHILD_EXISTENCE_BIT:0);
+                into.markDirty(worldSection, updateFlags, neighbors);
+                if ((updateFlags & UPDATE_TYPE_DONT_SAVE) == 0) {
+                    into.saveSection(worldSection, false, true);
+                }
             }
 
             //Need to release the section after using it
