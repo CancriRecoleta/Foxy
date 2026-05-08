@@ -85,6 +85,13 @@ public final class WorldIdentifier {
     public long getLongHash() { return Integer.toUnsignedLong(this.worldId.hashCode()); }
 
     public static WorldIdentifier of(Level level) {
+        var instance = FoxyInstance.current();
+        if (instance != null) {
+            var active = instance.identifier();
+            return active.levelKey().equals(level.dimension())
+                    ? active
+                    : new WorldIdentifier(active.namespace(), level.dimension(), active.biomeSeed());
+        }
         return new WorldIdentifier("default", level.dimension(), 0L);
     }
 

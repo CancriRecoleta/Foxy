@@ -2,8 +2,10 @@ package com.github.foxy.commonImpl;
 
 import com.github.foxy.Foxy;
 import com.github.foxy.common.Logger;
+import com.github.foxy.common.StorageConfigUtil;
+import com.github.foxy.common.config.ConfigBuildCtx;
+import com.github.foxy.common.config.section.SectionStorageConfig;
 import com.github.foxy.common.config.section.SectionSerializationStorage;
-import com.github.foxy.common.config.storage.StorageBackend;
 import com.github.foxy.common.config.storage.file.FileStorageBackend;
 import com.github.foxy.common.thread.UnifiedServiceThreadPool;
 import com.github.foxy.common.thread.ServiceManager;
@@ -42,6 +44,8 @@ public final class FoxyInstance {
     private static volatile FoxyInstance current;
 
     private final WorldIdentifier identifier;
+    private final Path basePath;
+    private final Config storageConfig;
     private final ImportManager importManager = new ImportManager();
     private final UnifiedServiceThreadPool threadPool = new UnifiedServiceThreadPool();
     private final SectionSavingService savingService = new SectionSavingService(this.threadPool.serviceManager);
@@ -49,8 +53,15 @@ public final class FoxyInstance {
     private final Map<WorldIdentifier, WorldEngine> engines = new HashMap<>();
     private final Map<WorldEngine, MipService> mipServices = new HashMap<>();
 
-    private FoxyInstance(WorldIdentifier identifier) {
+    private FoxyInstance(WorldIdentifier identifier, Path basePath) {
         this.identifier = identifier;
+        this.basePath = basePath.toAbsolutePath().normalize();
+        this.storageConfig = StorageConfigUtil.getCreateStorageConfig(
+                Config.class,
+                c -> c.version == 1 && c.sectionStorageConfig != null,
+                Config::defaultConfig,
+                this.basePath);
+        Logger.info("Foxy storage base path: " + this.basePath);
     }
 
     /** Returns the active instance or {@code null} when no world is bound. */
@@ -63,6 +74,10 @@ public final class FoxyInstance {
      * identifier as the current one is a no-op.
      */
     public static synchronized FoxyInstance enter(WorldIdentifier identifier) {
+        return enter(identifier, FMLPaths.GAMEDIR.get().resolve(Foxy.MODID).resolve("saves"));
+    }
+
+    public static synchronized FoxyInstance enter(WorldIdentifier identifier, Path basePath) {
         var existing = current;
         if (existing != null && existing.identifier.equals(identifier)) {
             return existing;
@@ -70,7 +85,7 @@ public final class FoxyInstance {
         if (existing != null) {
             existing.shutdownInternal();
         }
-        var fresh = new FoxyInstance(identifier);
+        var fresh = new FoxyInstance(identifier, basePath);
         current = fresh;
         Logger.info("FoxyInstance entered " + identifier);
         return fresh;
@@ -115,7 +130,7 @@ public final class FoxyInstance {
     public synchronized WorldEngine getOrCreateEngine(WorldIdentifier id) {
         var engine = this.engines.get(id);
         if (engine != null && engine.isLive()) return engine;
-        engine = buildEngine(id);
+        engine = this.buildEngine(id);
         engine.setSaveCallback(this.savingService::enqueueSave);
         this.engines.put(id, engine);
         return engine;
@@ -145,18 +160,36 @@ public final class FoxyInstance {
 
     // ---- internals ---------------------------------------------------------------------
 
-    private static Path storageRootFor(WorldIdentifier id) {
-        return FMLPaths.GAMEDIR.get()
-                .resolve(Foxy.MODID)
-                .resolve(id.getWorldId());
+    private WorldEngine buildEngine(WorldIdentifier id) {
+        var ctx = new ConfigBuildCtx();
+        ctx.setProperty(ConfigBuildCtx.BASE_SAVE_PATH, this.basePath.toString());
+        ctx.setProperty(ConfigBuildCtx.WORLD_IDENTIFIER, id.getWorldId());
+        ctx.setProperty(ConfigBuildCtx.PLAYER_UUID, "local");
+        ctx.pushPath(ConfigBuildCtx.DEFAULT_STORAGE_PATH);
+        Logger.info("Foxy: building WorldEngine for " + id + " under " + ctx.substituteString(ctx.resolvePath()));
+        var sectionStorage = this.createSectionStorage(ctx);
+        return new WorldEngine(sectionStorage, this);
     }
 
-    private static WorldEngine buildEngine(WorldIdentifier id) {
-        Path root = storageRootFor(id);
-        Logger.info("Foxy: building WorldEngine for " + id + " at " + root);
-        StorageBackend backend = new FileStorageBackend(root);
-        var sectionStorage = new SectionSerializationStorage(backend);
-        return new WorldEngine(sectionStorage);
+    private com.github.foxy.common.config.section.SectionStorage createSectionStorage(ConfigBuildCtx ctx) {
+        try {
+            return this.storageConfig.sectionStorageConfig.build(ctx);
+        } catch (Throwable t) {
+            Logger.error("Foxy storage backend failed; falling back to file storage at "
+                    + ctx.substituteString(ctx.resolvePath()), t);
+            this.storageConfig.sectionStorageConfig = StorageConfigUtil.createDefaultSerializer();
+            this.saveStorageConfig();
+            return this.storageConfig.sectionStorageConfig.build(ctx);
+        }
+    }
+
+    private void saveStorageConfig() {
+        try {
+            java.nio.file.Files.writeString(this.basePath.resolve("config.json"),
+                    com.github.foxy.common.config.Serialization.GSON.toJson(this.storageConfig));
+        } catch (Throwable t) {
+            Logger.error("Foxy failed to persist fallback storage config", t);
+        }
     }
 
     private void shutdownInternal() {
@@ -179,5 +212,17 @@ public final class FoxyInstance {
         }
         this.engines.clear();
         try { this.threadPool.shutdown(); } catch (Throwable t) { Logger.error("Service thread pool close failed", t); }
+    }
+
+    private static final class Config {
+        public int version = 1;
+        public boolean disabled = false;
+        public SectionStorageConfig sectionStorageConfig;
+
+        static Config defaultConfig() {
+            var config = new Config();
+            config.sectionStorageConfig = StorageConfigUtil.createDefaultSerializer();
+            return config;
+        }
     }
 }

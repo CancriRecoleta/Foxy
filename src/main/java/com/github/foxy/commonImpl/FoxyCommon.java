@@ -2,6 +2,7 @@ package com.github.foxy.commonImpl;
 
 import com.github.foxy.Foxy;
 import com.github.foxy.common.Logger;
+import com.github.foxy.common.config.Serialization;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.loading.FMLEnvironment;
@@ -67,6 +68,9 @@ public final class FoxyCommon {
         // 'value never used' warnings.
         if (!IS_IN_MINECRAFT) {
             // intentionally empty
+        }
+        if (Serialization.GSON == null) {
+            Serialization.init();
         }
     }
 

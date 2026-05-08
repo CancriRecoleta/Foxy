@@ -6,6 +6,7 @@
   "refmap": "foxy.refmap.json",
   "mixins": [],
   "client": [
+    "minecraft.ClientChunkCacheMixin",
     "minecraft.GameRendererMixin",
     "minecraft.LevelRendererMixin",
     "iris.CommonUniformsMixin",

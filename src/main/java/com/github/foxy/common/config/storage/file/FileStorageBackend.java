@@ -1,7 +1,9 @@
 package com.github.foxy.common.config.storage.file;
 
 import com.github.foxy.common.Logger;
+import com.github.foxy.common.config.ConfigBuildCtx;
 import com.github.foxy.common.config.storage.StorageBackend;
+import com.github.foxy.common.config.storage.StorageConfig;
 import com.github.foxy.common.util.MemoryBuffer;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import org.lwjgl.system.MemoryUtil;
@@ -261,4 +263,15 @@ public final class FileStorageBackend extends StorageBackend {
     }
 
     @Override public void close() { /* no resources to release */ }
+
+    public static class Config extends StorageConfig {
+        @Override
+        public StorageBackend build(ConfigBuildCtx ctx) {
+            return new FileStorageBackend(Path.of(ctx.ensurePathExists(ctx.substituteString(ctx.resolvePath()))));
+        }
+
+        public static String getConfigTypeName() {
+            return "File";
+        }
+    }
 }

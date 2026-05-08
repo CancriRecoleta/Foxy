@@ -1,0 +1,16 @@
+{
+  "foxy.options.page": "Foxy",
+  "foxy.options.enabled.name": "启用 Foxy",
+  "foxy.options.enabled.tooltip": "Foxy LOD 存储和渲染的总开关。",
+  "foxy.options.enable_rendering.name": "渲染远景 LOD",
+  "foxy.options.enable_rendering.tooltip": "独立于原版/Embeddium 视距渲染 Foxy 低细节地形。",
+  "foxy.options.ingest_enabled.name": "摄取已加载区块",
+  "foxy.options.ingest_enabled.tooltip": "保存已加载的区块 section，以便稍后重建远景 LOD。",
+  "foxy.options.section_render_distance.name": "Foxy LOD 距离",
+  "foxy.options.section_render_distance.tooltip": "Foxy 顶层 LOD 单元半径；与原版/Embeddium 视距分离。",
+  "foxy.options.section_render_distance.value": "%s 个 LOD 单元",
+  "foxy.options.service_threads.name": "Foxy 工作线程",
+  "foxy.options.service_threads.tooltip": "用于摄取、网格生成和存储任务的后台线程数。",
+  "foxy.options.keep_embeddium_builder_threads.name": "保留 Embeddium 构建线程",
+  "foxy.options.keep_embeddium_builder_threads.tooltip": "启用后，Foxy 不会借用 Embeddium 区块构建线程容量。"
+}

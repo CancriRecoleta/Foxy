@@ -58,10 +58,9 @@ import java.util.regex.Pattern;
  *       release the section reference.</li>
  * </ol>
  *
- * <p>Out of scope for this implementation: building the upper LOD layers
- * ({@code lvl 1..4}) of the mip pyramid. After LOD 0 is populated, a future mipping
- * service will walk the LOD-0 nodes and regenerate the parent layers; this importer
- * only writes LOD 0.</p>
+ * <p>The import writes LOD 0 synchronously. The owning {@link
+ * com.github.foxy.commonImpl.ImportManager} starts the asynchronous mip rebuild after
+ * completion so LOD 1..4 become renderable without a manual follow-up command.</p>
  *
  * <h2>Threading</h2>
  * <p>{@link #runImport} returns immediately and runs work on a dedicated daemon worker
@@ -280,10 +279,9 @@ public final class WorldImporter implements IDataImporter {
                 dst.updateLvl0State();
                 this.engine.markDirty(dst);
                 this.engine.saveSection(dst);
-                // Building the LOD pyramid here would couple importer perf to mip cost;
-                // a follow-up mipping service walks LOD-0 sections after the import
-                // finishes. WorldVoxilizedSectionMipper is referenced just so this
-                // dependency is statically observable for IDE / linker tools.
+                // The import path writes LOD 0 only; ImportManager schedules mipAll()
+                // once the whole run completes so LOD 1..4 are rebuilt in coherent
+                // parent batches instead of racing every individual chunk write.
                 @SuppressWarnings("unused") var unused = WorldVoxilizedSectionMipper.class;
             } finally {
                 dst.release();

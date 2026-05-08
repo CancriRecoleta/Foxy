@@ -4,6 +4,7 @@ import com.github.foxy.client.config.FoxyConfig;
 import com.github.foxy.client.core.FoxyRenderSystem;
 import com.github.foxy.client.core.IGetFoxyRenderSystem;
 import com.github.foxy.common.world.service.VoxelIngestService;
+import com.github.foxy.commonImpl.WorldIdentifier;
 import me.jellysquid.mods.sodium.client.gl.device.CommandList;
 import me.jellysquid.mods.sodium.client.render.chunk.RenderSection;
 import me.jellysquid.mods.sodium.client.render.chunk.RenderSectionFlags;
@@ -48,6 +49,16 @@ public abstract class RenderSectionManagerMixin {
 
     @Inject(method = "onChunkAdded", at = @At("HEAD"))
     private void foxy$ingestOnChunkAdded(int x, int z, CallbackInfo ci) {
+        this.foxy$ingestChunk(x, z);
+    }
+
+    @Inject(method = "onChunkRemoved", at = @At("HEAD"))
+    private void foxy$ingestOnChunkRemoved(int x, int z, CallbackInfo ci) {
+        this.foxy$ingestChunk(x, z);
+    }
+
+    @Unique
+    private void foxy$ingestChunk(int x, int z) {
         if (!FoxyConfig.CONFIG.ingestEnabled) {
             return;
         }
@@ -76,7 +87,7 @@ public abstract class RenderSectionManagerMixin {
         int y = section.getChunkY();
         int z = section.getChunkZ();
 
-        if (wasBuilt && FoxyConfig.CONFIG.ingestEnabled) {
+        if ((wasBuilt || isBuilt) && FoxyConfig.CONFIG.ingestEnabled) {
             var chunk = this.world.getChunkSource().getChunk(x, z, ChunkStatus.FULL, false);
             if (chunk != null) {
                 int sectionIndex = y - this.foxy$bottomSectionY;
@@ -86,7 +97,7 @@ public abstract class RenderSectionManagerMixin {
                     var lightEngine = this.world.getLightEngine();
                     var blockLight = lightEngine.getLayerListener(LightLayer.BLOCK).getDataLayerData(sectionPos);
                     var skyLight = lightEngine.getLayerListener(LightLayer.SKY).getDataLayerData(sectionPos);
-                    VoxelIngestService.rawIngest(renderer.getEngine(), sectionData, x, y, z, blockLight == null ? null : blockLight.copy(), skyLight == null ? null : skyLight.copy());
+                    VoxelIngestService.rawIngest(WorldIdentifier.of(this.world), sectionData, x, y, z, blockLight == null ? null : blockLight.copy(), skyLight == null ? null : skyLight.copy());
                 }
             }
         }

@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.github.foxy.client.TimingStatistics;
 import com.github.foxy.client.FoxyClient;
+import com.github.foxy.client.ICheekyClientChunkCache;
 import com.github.foxy.client.config.FoxyConfig;
 import com.github.foxy.client.core.gl.Capabilities;
 import com.github.foxy.client.core.gl.GlBuffer;
@@ -31,7 +32,9 @@ import com.github.foxy.client.core.util.IrisUtil;
 import com.github.foxy.common.Logger;
 import com.github.foxy.common.thread.ServiceManager;
 import com.github.foxy.common.world.WorldEngine;
+import com.github.foxy.common.world.service.VoxelIngestService;
 import com.github.foxy.commonImpl.FoxyCommon;
+import com.github.foxy.commonImpl.WorldIdentifier;
 import com.github.foxy.client.compat.FogParameters;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -161,6 +164,7 @@ public class FoxyRenderSystem {
             }
 
             this.chunkBoundRenderer = new ChunkBoundRenderer(this.pipeline);
+            this.ingestCurrentlyLoadedChunks();
 
             Logger.info("Foxy render system created with " + this.geometryData.getMaxCapacity() + " geometry capacity, using pipeline '" + this.pipeline.getClass().getSimpleName() + "' with renderer '" + sectionRenderer.getClass().getSimpleName() + "'");
         } catch (RuntimeException e) {
@@ -541,5 +545,25 @@ public class FoxyRenderSystem {
 
     public WorldEngine getEngine() {
         return this.worldIn;
+    }
+
+    private void ingestCurrentlyLoadedChunks() {
+        if (!FoxyConfig.CONFIG.ingestEnabled) {
+            return;
+        }
+        var mc = Minecraft.getInstance();
+        var level = mc.level;
+        var player = mc.player;
+        if (level == null || player == null) {
+            return;
+        }
+
+        int[] queued = {0};
+        ((ICheekyClientChunkCache) level.getChunkSource()).foxy$forEachLoadedChunk(chunk -> {
+            if (VoxelIngestService.tryIngestChunk(WorldIdentifier.of(level), chunk)) {
+                queued[0]++;
+            }
+        });
+        Logger.info("Foxy queued " + queued[0] + " already-loaded chunks for LOD ingest");
     }
 }

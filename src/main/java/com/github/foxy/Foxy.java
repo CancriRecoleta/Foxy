@@ -2,6 +2,7 @@ package com.github.foxy;
 
 import com.github.foxy.client.FoxyClientLifecycle;
 import com.github.foxy.client.FoxyCommands;
+import com.github.foxy.client.FoxyEmbeddiumOptions;
 import com.github.foxy.commonImpl.FoxyCommon;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
@@ -30,8 +31,8 @@ import net.minecraftforge.fml.common.Mod;
  *       {@code status}.</li>
  * </ol>
  *
- * <p>The current build delivers the storage, voxelization, import, and LOD-mipping
- * pipeline; client-side rendering is not yet wired up.</p>
+ * <p>The current build wires storage, live voxel ingestion, import/mipping, and the
+ * client LOD render pass on top of Embeddium/Oculus-compatible hooks.</p>
  */
 @Mod(Foxy.MODID)
 public class Foxy {
@@ -48,6 +49,7 @@ public class Foxy {
         DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> {
             MinecraftForge.EVENT_BUS.register(FoxyClientLifecycle.class);
             MinecraftForge.EVENT_BUS.register(FoxyCommands.class);
+            MinecraftForge.EVENT_BUS.register(FoxyEmbeddiumOptions.class);
         });
     }
 }

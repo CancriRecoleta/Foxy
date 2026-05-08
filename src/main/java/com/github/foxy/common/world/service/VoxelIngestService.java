@@ -121,7 +121,7 @@ public class VoxelIngestService {
                 i++;
                 if (section == null || !shouldIngestSection(section, chunk.getPos().x, i, chunk.getPos().z)) continue;
                 engine.markActive();
-                this.ingestQueue.add(new IngestSection(chunk.getPos().x, i, chunk.getPos().z, engine, section, null, null));
+                this.ingestQueue.add(new IngestSection(chunk.getPos().x, i, chunk.getPos().z, engine, snapshotSection(section), null, null));
                 try {
                     this.service.execute();
                 } catch (Exception e) {
@@ -129,10 +129,6 @@ public class VoxelIngestService {
                     break;
                 }
             }
-        }
-
-        if (!gotLighting) {
-            return false;
         }
 
         var blp = lightingProvider.getLayerListener(LightLayer.BLOCK);
@@ -146,12 +142,12 @@ public class VoxelIngestService {
             //if (section.isEmpty()) continue;
             var pos = SectionPos.of(chunk.getPos(), i);
 
-            var bl = blp.getDataLayerData(pos);
+            var bl = gotLighting ? blp.getDataLayerData(pos) : null;
             if (bl != null) {
                 bl = bl.copy();
             }
 
-            var sl = slp.getDataLayerData(pos);
+            var sl = gotLighting ? slp.getDataLayerData(pos) : null;
             if (sl != null) {
                 sl = sl.copy();
             }
@@ -161,7 +157,7 @@ public class VoxelIngestService {
             //    continue;
             //}
             engine.markActive();
-            this.ingestQueue.add(new IngestSection(chunk.getPos().x, i, chunk.getPos().z, engine, section, bl, sl));//TODO: fixme, this is technically not safe todo on the chunk load ingest, we need to copy the section data so it cant be modified while being read
+            this.ingestQueue.add(new IngestSection(chunk.getPos().x, i, chunk.getPos().z, engine, snapshotSection(section), bl, sl));
             try {
                 this.service.execute();
             } catch (Exception e) {
@@ -196,8 +192,12 @@ public class VoxelIngestService {
         return tryIngestChunk(WorldIdentifier.of(chunk.getLevel()), chunk);
     }
 
+    private static LevelChunkSection snapshotSection(LevelChunkSection section) {
+        return new LevelChunkSection(section.getStates().copy(), section.getBiomes());
+    }
+
     private boolean rawIngest0(WorldEngine engine, LevelChunkSection section, int x, int y, int z, DataLayer bl, DataLayer sl) {
-        this.ingestQueue.add(new IngestSection(x, y, z, engine, section, bl, sl));
+        this.ingestQueue.add(new IngestSection(x, y, z, engine, snapshotSection(section), bl, sl));
         try {
             this.service.execute();
             return true;
@@ -209,15 +209,19 @@ public class VoxelIngestService {
 
     public static boolean rawIngest(WorldIdentifier id, LevelChunkSection section, int x, int y, int z, DataLayer bl, DataLayer sl) {
         if (id == null) return false;
-        var engine = id.getOrCreateEngine();
+        if (!shouldIngestSection(section, x, y, z)) return false;
+        var instance = FoxyCommon.getInstance();
+        if (instance == null) return false;
+        if (!instance.isIngestEnabled(id)) return false;
+        var engine = instance.getOrCreate(id);
         if (engine == null) return false;
-        return rawIngest(engine, section, x, y, z, bl, sl);
+        return instance.getIngestService().rawIngest0(engine, section, x, y, z, bl, sl);
     }
 
     public static boolean rawIngest(WorldEngine engine, LevelChunkSection section, int x, int y, int z, DataLayer bl, DataLayer sl) {
         if (!shouldIngestSection(section, x, y, z)) return false;
         if (engine.instanceIn == null) return false;
-        if (!engine.instanceIn.isIngestEnabled(null)) return false;//TODO: dont pass in null
+        if (!engine.instanceIn.isIngestEnabled(engine.instanceIn.identifier())) return false;
         return engine.instanceIn.getIngestService().rawIngest0(engine, section, x, y, z, bl, sl);
     }
 }

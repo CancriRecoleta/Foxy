@@ -81,6 +81,12 @@ public class ImportManager {
         }
 
         protected void onCompleted(int chunks) {
+            var engine = this.importer.getEngine();
+            var instance = engine.instanceIn;
+            if (instance != null && chunks > 0) {
+                int enqueued = instance.getOrCreateMipService(engine).mipAll();
+                Logger.info("Foxy import completed: " + chunks + " chunks imported, " + enqueued + " LOD parents queued for mipping");
+            }
             ImportManager.this.jobFinished(this);
         }
 
