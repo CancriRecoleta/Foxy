@@ -213,6 +213,7 @@ public final class FoxyInstance {
 
     private void shutdownInternal() {
         Logger.info("Foxy: tearing down instance for " + this.identifier);
+        try { this.importManager.cancelAll(); } catch (Throwable t) { Logger.error("ImportManager close failed", t); }
         // Shut down mip services first so they stop poking the engines mid-shutdown.
         for (var service : this.mipServices.values()) {
             try { service.close(); } catch (Throwable t) { Logger.error("MipService close failed", t); }

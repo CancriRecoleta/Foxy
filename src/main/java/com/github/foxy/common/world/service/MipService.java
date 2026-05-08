@@ -202,10 +202,16 @@ public final class MipService implements AutoCloseable {
     public void shutdown(boolean drain) {
         this.drainOnShutdown = drain;
         this.running = false;
-        try {
-            this.worker.join(5_000L);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+        if (!drain) {
+            this.worker.interrupt();
+        }
+        while (this.worker.isAlive()) {
+            try {
+                this.worker.join(1_000L);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
         }
     }
 

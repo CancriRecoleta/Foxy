@@ -373,7 +373,7 @@ public class MDICSectionRenderer extends AbstractSectionRenderer<MDICViewport, B
     @Override
     public void addDebug(List<String> lines) {
         super.addDebug(lines);
-        //lines.add("SC/GS: " + this.geometryManager.getSectionCount() + "/" + (this.geometryManager.getGeometryUsed()/(1024*1024)));//section count/geometry size (MB)
+        lines.add("SC/GC: " + this.geometryManager.getSectionCount() + "/" + (this.geometryManager.getGeometryCapacityBytes()/(1024*1024)));
     }
 
     @Override

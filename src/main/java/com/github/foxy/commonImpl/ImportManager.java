@@ -161,6 +161,18 @@ public class ImportManager {
         return true;
     }
 
+    /** Cancels every active import. Used during world teardown before engines close. */
+    public void cancelAll() {
+        for (var entry : this.activeImports.entrySet()) {
+            try {
+                entry.getValue().shutdown();
+            } catch (Throwable t) {
+                Logger.error("Import cancellation failed", t);
+            }
+            this.activeImports.remove(entry.getKey(), entry.getValue());
+        }
+    }
+
     /** Called from the importer's completion callback to deregister the task. */
     private void jobFinished(Task task) {
         this.activeImports.remove(task.importer.getEngine(), task);
