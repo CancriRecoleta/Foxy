@@ -1,4 +1,4 @@
-#import <voxy:lod/pos_util.glsl>
+#import <foxy:lod/pos_util.glsl>
 /*
 struct SectionMeta {
     uint posA;

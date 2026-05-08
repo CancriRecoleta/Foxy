@@ -10,7 +10,7 @@ layout(binding = 0, std140) uniform SceneUniform {
 };
 
 #define NODE_DATA_INDEX 1
-#import <voxy:lod/hierarchical/node.glsl>
+#import <foxy:lod/hierarchical/node.glsl>
 
 layout(binding = 2, std430) restrict buffer NodeList {
     uint count;

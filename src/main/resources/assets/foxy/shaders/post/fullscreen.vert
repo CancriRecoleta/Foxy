@@ -1,6 +1,6 @@
 #version 330 core
 
-#import <voxy:util/depthutils.glsl>
+#import <foxy:util/depthutils.glsl>
 
 out vec2 UV;
 void main() {

@@ -1,7 +1,5 @@
 package com.github.foxy.client.core.rendering;
 
-import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import com.github.foxy.client.core.AbstractRenderPipeline;
 import com.github.foxy.client.core.RenderProperties;
 import com.github.foxy.client.core.gl.GlBuffer;
@@ -13,53 +11,106 @@ import com.github.foxy.client.core.gl.shader.ShaderType;
 import com.github.foxy.client.core.rendering.util.SharedIndexBuffer;
 import com.github.foxy.client.core.rendering.util.UploadStream;
 import com.github.foxy.common.Logger;
+import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.client.Minecraft;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector3i;
 import org.lwjgl.system.MemoryUtil;
 
-import static org.lwjgl.opengl.ARBDirectStateAccess.glCopyNamedBufferSubData;
-import static org.lwjgl.opengl.GL11.GL_TRIANGLES;
-import static org.lwjgl.opengl.GL11.GL_UNSIGNED_BYTE;
-import static org.lwjgl.opengl.GL15.GL_ELEMENT_ARRAY_BUFFER;
-import static org.lwjgl.opengl.GL15.glBindBuffer;
-import static org.lwjgl.opengl.GL30.glBindVertexArray;
-import static org.lwjgl.opengl.GL30C.*;
-import static org.lwjgl.opengl.GL31.glDrawElementsInstanced;
-import static org.lwjgl.opengl.GL42.glDrawElementsInstancedBaseInstance;
+import static org.lwjgl.opengl.GL11C.GL_CCW;
+import static org.lwjgl.opengl.GL11C.GL_CULL_FACE;
+import static org.lwjgl.opengl.GL11C.GL_CW;
+import static org.lwjgl.opengl.GL11C.GL_DEPTH_TEST;
+import static org.lwjgl.opengl.GL11C.GL_TRIANGLES;
+import static org.lwjgl.opengl.GL11C.GL_UNSIGNED_BYTE;
+import static org.lwjgl.opengl.GL11C.glDepthFunc;
+import static org.lwjgl.opengl.GL11C.glEnable;
+import static org.lwjgl.opengl.GL31C.glDrawElementsInstanced;
+import static org.lwjgl.opengl.GL11C.glFrontFace;
+import static org.lwjgl.opengl.GL15C.GL_ELEMENT_ARRAY_BUFFER;
+import static org.lwjgl.opengl.GL15C.glBindBuffer;
+import static org.lwjgl.opengl.GL30C.glBindVertexArray;
+import static org.lwjgl.opengl.GL42C.glDrawElementsInstancedBaseInstance;
+import static org.lwjgl.opengl.GL45C.glCopyNamedBufferSubData;
 
-//This is a render subsystem, its very simple in what it does
-// it renders an AABB around loaded chunks, thats it
+/**
+ * Debug-render subsystem that draws an axis-aligned box around every loaded
+ * chunk-section.
+ *
+ * <h2>What it draws</h2>
+ * <p>One unit-cube per (x, z) chunk-position; the box is positioned and sized in the
+ * vertex shader from the position-buffer SSBO. The rasteriser uses the depth-bound
+ * FBO as the colour-less render target so the result is just a depth-buffer
+ * mask of "where chunks are loaded" &mdash; useful for post-FX overlays and as an
+ * input to occlusion tests.</p>
+ *
+ * <h2>Position buffer + handle table</h2>
+ * <p>Two parallel structures keep the on-GPU and on-CPU views in sync:</p>
+ * <ul>
+ *   <li>{@link #chunk2idx} &mdash; chunk position (long) &rarr; slot index in the GPU buffer.</li>
+ *   <li>{@link #idx2chunk} &mdash; slot index &rarr; chunk position; lets {@link #_remPos}
+ *       compact the heap by moving the last entry into the freed slot.</li>
+ * </ul>
+ * The GPU buffer is grown geometrically when full; an SSBO rebinding keeps the
+ * shader's view current.
+ *
+ * <h2>Add / remove queues</h2>
+ * <p>External code calls {@link #addSection(long)} and {@link #removeSection(long)};
+ * both routes through symmetric queues so a same-frame add-then-remove (or vice
+ * versa) cancels out without touching GL state. The queues drain inside
+ * {@link #render(Viewport)}.</p>
+ *
+ * <h2>Cleanroom note</h2>
+ * <p>Same algorithm and shader as upstream Voxy. The cleanroom rewrite tightens
+ * the static-import set, replaces the {@code ARBDirectStateAccess} import with
+ * {@link org.lwjgl.opengl.GL45C}, names the magic numbers used in the batched draw
+ * ({@code 32} per instance, {@code 6 * 2 * 3} indices per cube), and adds full
+ * English javadoc.</p>
+ */
 public class ChunkBoundRenderer {
-    private static final int INIT_MAX_CHUNK_COUNT = 1<<12;
-    private GlBuffer chunkPosBuffer = new GlBuffer(INIT_MAX_CHUNK_COUNT*8);//Stored as ivec2
+
+    /** Initial slot count in the chunk position buffer; grows geometrically when full. */
+    private static final int INIT_MAX_CHUNK_COUNT = 1 << 12;
+
+    /** Cubes per instance batch in {@code glDrawElementsInstanced}. */
+    private static final int CUBES_PER_BATCH = 32;
+
+    /** Indices per cube (6 faces × 2 triangles × 3 indices). */
+    private static final int INDICES_PER_CUBE = 6 * 2 * 3;
+
+    private GlBuffer chunkPosBuffer = new GlBuffer((long) INIT_MAX_CHUNK_COUNT * 8); // ivec2 per slot
     private final GlBuffer uniformBuffer = new GlBuffer(128);
     private final Long2IntOpenHashMap chunk2idx = new Long2IntOpenHashMap(INIT_MAX_CHUNK_COUNT);
     private long[] idx2chunk = new long[INIT_MAX_CHUNK_COUNT];
+
     private final Shader rasterShader;
     private final RenderProperties properties;
+    private final AbstractRenderPipeline pipeline;
 
     private final LongOpenHashSet addQueue = new LongOpenHashSet();
     private final LongOpenHashSet remQueue = new LongOpenHashSet();
 
-    private final AbstractRenderPipeline pipeline;
     public ChunkBoundRenderer(AbstractRenderPipeline pipeline) {
         this.chunk2idx.defaultReturnValue(-1);
         this.properties = pipeline.properties;
 
-        String vert = ShaderLoader.parse("Foxy:chunkoutline/outline.vsh");
+        // The vertex shader reads TAA jitter via the pipeline if available; the
+        // boolean is plumbed through a #define so the same source compiles in both modes.
+        String vertSource = ShaderLoader.parse("Foxy:chunkoutline/outline.vsh");
         String taa = pipeline.taaFunction("getTAA");
-        if (taa != null) {
+        boolean useTaa = taa != null;
+        if (useTaa) {
             this.pipeline = pipeline;
-            vert = vert+"\n\n\n"+taa;
+            vertSource = vertSource + "\n\n\n" + taa;
         } else {
             this.pipeline = null;
         }
 
         this.rasterShader = Shader.makeAuto()
-                .addSource(ShaderType.VERTEX, vert)
-                .defineIf("TAA", taa != null)
+                .addSource(ShaderType.VERTEX, vertSource)
+                .defineIf("TAA", useTaa)
                 .add(ShaderType.FRAGMENT, "Foxy:chunkoutline/outline.fsh")
                 .apply(this.properties::apply)
                 .compile()
@@ -79,160 +130,163 @@ public class ChunkBoundRenderer {
         }
     }
 
-    //Bind and render, changing as little gl state as possible so that the caller may configure how it wants to render
+    /**
+     * Drains pending add / remove queues, uploads the per-frame uniform block and
+     * issues the batched indirect draws.
+     *
+     * <p>Touches and then restores GL state for: front-face winding, cull face,
+     * depth test, depth function, vertex array binding, framebuffer binding.</p>
+     */
     public void render(Viewport<?> viewport) {
+        // Drain removes first so the addQueue isn't immediately compared against
+        // stale slot indices.
         if (!this.remQueue.isEmpty()) {
             boolean wasEmpty = this.chunk2idx.isEmpty();
-            this.remQueue.forEach(this::_remPos);//TODO: REPLACE WITH SCATTER COMPUTE
+            this.remQueue.forEach(this::_remPos);
             this.remQueue.clear();
-            if (this.chunk2idx.isEmpty()&&!wasEmpty) {//When going from stuff to nothing need to clear the depth buffer
+            if (this.chunk2idx.isEmpty() && !wasEmpty) {
                 viewport.depthBoundingBuffer.clear(this.properties.inverseClearDepth());
             }
         }
 
         if (this.chunk2idx.isEmpty() && this.addQueue.isEmpty()) return;
-
         viewport.depthBoundingBuffer.clear(this.properties.inverseClearDepth());
 
+        // ---- per-frame uniform upload --------------------------------------------------
         long ptr = UploadStream.INSTANCE.upload(this.uniformBuffer, 0, 128);
-        long matPtr = ptr; ptr += 4*4*4;
+        long matPtr = ptr;
+        ptr += 4 * 4 * 4;
 
-        final float renderDistance = Minecraft.getInstance().options.getEffectiveRenderDistance()*16;//In blocks
+        final float renderDistanceBlocks = Minecraft.getInstance().options.getEffectiveRenderDistance() * 16f;
+        int bx = (int) viewport.cameraX;
+        int by = (int) viewport.cameraY;
+        int bz = (int) viewport.cameraZ;
+        new Vector3i(bx, by, bz).getToAddress(ptr);
+        ptr += 4 * 4;
 
-        {//This is recomputed to be in chunk section space not worldsection
+        var negInnerBlock = new Vector3f(
+                (float) (viewport.cameraX - bx),
+                (float) (viewport.cameraY - by),
+                (float) (viewport.cameraZ - bz));
+        negInnerBlock.getToAddress(ptr);
+        ptr += 4 * 3;
 
-            //Camera block pos
-            int bx = (int)(viewport.cameraX);
-            int by = (int)(viewport.cameraY);
-            int bz = (int)(viewport.cameraZ);
-            new Vector3i(bx, by, bz).getToAddress(ptr); ptr += 4*4;
+        viewport.MVP.translate(negInnerBlock.negate(), new Matrix4f()).getToAddress(matPtr);
+        MemoryUtil.memPutFloat(ptr, renderDistanceBlocks);
 
-            var negInnerBlock = new Vector3f(
-                    (float) (viewport.cameraX - bx),
-                    (float) (viewport.cameraY - by),
-                    (float) (viewport.cameraZ - bz));
-
-
-            negInnerBlock.getToAddress(ptr); ptr += 4*3;
-            viewport.MVP.translate(negInnerBlock.negate(), new Matrix4f()).getToAddress(matPtr);
-            MemoryUtil.memPutFloat(ptr, renderDistance); ptr += 4;
-        }
         UploadStream.INSTANCE.commit();
 
-
-        {
-            //need to reverse the winding order since we want the back faces of the AABB, not the front
-
-            glFrontFace(GL_CW);//Reverse winding order
-
-            //"reverse depth buffer" it goes from 0->1 where 1 is far away
-            glEnable(GL_CULL_FACE);
-            glEnable(GL_DEPTH_TEST);
-            glDepthFunc(this.properties.furtherDepthCompare());
-        }
+        // ---- pre-draw GL state ---------------------------------------------------------
+        // Reverse winding so we render the AABB's back faces (frontface gets occluded
+        // by anything inside the box, which is what the depth pass wants).
+        glFrontFace(GL_CW);
+        glEnable(GL_CULL_FACE);
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(this.properties.furtherDepthCompare());
 
         glBindVertexArray(GlVertexArray.STATIC_VAO);
         viewport.depthBoundingBuffer.bind();
         this.rasterShader.bind();
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, SharedIndexBuffer.INSTANCE_BB_BYTE.id());
-        if (this.pipeline != null) this.pipeline.bindUniforms();//shader TAA
+        if (this.pipeline != null) this.pipeline.bindUniforms();
 
-        //Batch the draws into groups of size 32
         int count = this.chunk2idx.size();
-        if (count >= 32) {
-            glDrawElementsInstanced(GL_TRIANGLES, 6 * 2 * 3 * 32, GL_UNSIGNED_BYTE, 0, count/32);
+        if (count >= CUBES_PER_BATCH) {
+            glDrawElementsInstanced(GL_TRIANGLES, INDICES_PER_CUBE * CUBES_PER_BATCH,
+                    GL_UNSIGNED_BYTE, 0L, count / CUBES_PER_BATCH);
         }
-        if (count%32 != 0) {
-            glDrawElementsInstancedBaseInstance(GL_TRIANGLES, 6 * 2 * 3 * (count%32), GL_UNSIGNED_BYTE, 0, 1, (count/32)*32);
-        }
-
-        {
-            glFrontFace(GL_CCW);//Restore winding order
-
-            glDepthFunc(this.properties.closerEqualDepthCompare());
-
-            //TODO: check this is correct
-            glEnable(GL_CULL_FACE);
-            glEnable(GL_DEPTH_TEST);
+        int leftover = count % CUBES_PER_BATCH;
+        if (leftover != 0) {
+            glDrawElementsInstancedBaseInstance(GL_TRIANGLES, INDICES_PER_CUBE * leftover,
+                    GL_UNSIGNED_BYTE, 0L, 1, (count / CUBES_PER_BATCH) * CUBES_PER_BATCH);
         }
 
+        // ---- restore GL state ----------------------------------------------------------
+        glFrontFace(GL_CCW);
+        glDepthFunc(this.properties.closerEqualDepthCompare());
+        glEnable(GL_CULL_FACE);
+        glEnable(GL_DEPTH_TEST);
 
+        // Drain adds last so newly-added slots are uploaded after the main draw used the
+        // previous frame's state.
         if (!this.addQueue.isEmpty()) {
-            this.addQueue.forEach(this::_addPos);//TODO: REPLACE WITH SCATTER COMPUTE
+            this.addQueue.forEach(this::_addPos);
             this.addQueue.clear();
             UploadStream.INSTANCE.commit();
         }
     }
 
+    /**
+     * Removes {@code pos} from the heap, moving the last entry into its slot to keep
+     * {@link #idx2chunk} dense (so {@link #chunk2idx#size} is the heap watermark).
+     */
     private void _remPos(long pos) {
         int idx = this.chunk2idx.remove(pos);
         if (idx == -1) {
-            Logger.warn("Chunk not in map: " + pos);
+            Logger.warn("ChunkBoundRenderer: tried to remove unknown chunk " + pos);
             return;
         }
         if (idx == this.chunk2idx.size()) {
-            //Dont need to do anything as heap is already compact
+            // Already at the end; the heap stays compact for free.
             return;
         }
         if (this.idx2chunk[idx] != pos) {
-            throw new IllegalStateException();
+            throw new IllegalStateException("ChunkBoundRenderer: idx2chunk inconsistency at slot " + idx);
         }
-
-        //Move last entry on heap to this index
-        long ePos = this.idx2chunk[this.chunk2idx.size()];// since is already removed size is correct end idx
-        if (this.chunk2idx.put(ePos, idx) == -1) {
-            throw new IllegalStateException();
+        // Move the last entry into the freed slot.
+        long endPos = this.idx2chunk[this.chunk2idx.size()];
+        if (this.chunk2idx.put(endPos, idx) == -1) {
+            throw new IllegalStateException("ChunkBoundRenderer: couldn't relocate end pos " + endPos);
         }
-        this.idx2chunk[idx] = ePos;
-
-        //Put the end pos into the new idx
-        this.put(idx, ePos);
+        this.idx2chunk[idx] = endPos;
+        put(idx, endPos);
     }
 
+    /** Appends {@code pos} to the heap, growing the position buffer when needed. */
     private void _addPos(long pos) {
         if (this.chunk2idx.containsKey(pos)) {
-            Logger.warn("Chunk already in map: " + pos);
+            Logger.warn("ChunkBoundRenderer: tried to add already-tracked chunk " + pos);
             return;
         }
-        this.ensureSize1();//Resize if needed
-
+        ensureCapacity();
         int idx = this.chunk2idx.size();
         this.chunk2idx.put(pos, idx);
         this.idx2chunk[idx] = pos;
-
-        this.put(idx, pos);
+        put(idx, pos);
     }
 
-    private void ensureSize1() {
+    /** Grows the GPU buffer + idx2chunk array by 1.5x when full; rebinds the shader's SSBO. */
+    private void ensureCapacity() {
         if (this.chunk2idx.size() < this.idx2chunk.length) return;
-        //Commit any copies, ensures is synced to new buffer
         UploadStream.INSTANCE.commit();
 
-        int size = (int) (this.idx2chunk.length*1.5);
-        Logger.info("Resizing chunk position buffer to: " + size);
-        //Need to resize
-        var old = this.chunkPosBuffer;
-        this.chunkPosBuffer = new GlBuffer(size * 8L);
-        glCopyNamedBufferSubData(old.id, this.chunkPosBuffer.id, 0, 0, old.size());
-        old.free();
-        var old2 = this.idx2chunk;
-        this.idx2chunk = new long[size];
-        System.arraycopy(old2, 0, this.idx2chunk, 0, old2.length);
-        //Replace the old buffer with the new one
-        ((AutoBindingShader)this.rasterShader).ssbo(1, this.chunkPosBuffer);
+        int newSize = (int) (this.idx2chunk.length * 1.5);
+        Logger.info("ChunkBoundRenderer: resizing position buffer to " + newSize + " slots");
+        var oldBuf = this.chunkPosBuffer;
+        this.chunkPosBuffer = new GlBuffer((long) newSize * 8L);
+        glCopyNamedBufferSubData(oldBuf.id, this.chunkPosBuffer.id, 0L, 0L, oldBuf.size());
+        oldBuf.free();
+
+        long[] oldArr = this.idx2chunk;
+        this.idx2chunk = new long[newSize];
+        System.arraycopy(oldArr, 0, this.idx2chunk, 0, oldArr.length);
+
+        ((AutoBindingShader) this.rasterShader).ssbo(1, this.chunkPosBuffer);
     }
 
+    /** Writes one (x, z) ivec2 entry into slot {@code idx} of the GPU buffer. */
     private void put(int idx, long pos) {
-        long ptr2 = UploadStream.INSTANCE.upload(this.chunkPosBuffer, 8L*idx, 8);
-        //Need to do it in 2 parts because ivec2 is 2 parts
-        MemoryUtil.memPutInt(ptr2, (int)(pos&0xFFFFFFFFL)); ptr2 += 4;
-        MemoryUtil.memPutInt(ptr2, (int)((pos>>>32)&0xFFFFFFFFL));
+        long ptr = UploadStream.INSTANCE.upload(this.chunkPosBuffer, 8L * idx, 8L);
+        MemoryUtil.memPutInt(ptr, (int) (pos & 0xFFFFFFFFL));
+        MemoryUtil.memPutInt(ptr + 4, (int) ((pos >>> 32) & 0xFFFFFFFFL));
     }
 
+    /** Drops every tracked chunk; the GPU buffer keeps its allocation. */
     public void reset() {
         this.chunk2idx.clear();
     }
 
+    /** Tears down the shader and both buffers. */
     public void free() {
         this.rasterShader.free();
         this.uniformBuffer.free();

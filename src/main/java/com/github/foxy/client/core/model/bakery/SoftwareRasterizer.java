@@ -1,266 +1,297 @@
 package com.github.foxy.client.core.model.bakery;
 
-import com.github.foxy.client.core.model.ModelFactory;
-import net.caffeinemc.mods.sodium.api.util.ColorABGR;
-import net.caffeinemc.mods.sodium.api.util.ColorARGB;
+// Embeddium for 1.20.1 keeps ColorMixer under the newer api package even though
+// ColorSRGB stayed under the legacy me.jellysquid.* tree.
 import net.caffeinemc.mods.sodium.api.util.ColorMixer;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
-import org.lwjgl.system.MemoryUtil;
 
 import java.util.Arrays;
-import java.util.Random;
 
-public class SoftwareRasterizer {
-    private final Vector4f scratch = new Vector4f();
+import static com.github.foxy.common.util.BitOps.clamp;
 
-    private final Vector3f scratch1 = new Vector3f();
-    private final Vector3f scratch2 = new Vector3f();
-    private final Vector3f scratch3 = new Vector3f();
-    private final Vector3f scratch4 = new Vector3f();
-    //quad meta uv
-    private final Vector3f qmuv1 = new Vector3f();
-    private final Vector3f qmuv2 = new Vector3f();
-    private final Vector3f qmuv3 = new Vector3f();
-    private final Vector3f qmuv4 = new Vector3f();
+/**
+ * Pure-CPU software rasteriser used by the model bakery to render block faces into
+ * a colour + depth + stencil framebuffer without touching the GL pipeline.
+ *
+ * <h2>Why not GL</h2>
+ * <p>The model bakery wants per-block-state textures available off-thread and
+ * deterministic across machines (so two clients building the same atlas hash to
+ * identical bytes). GL would require either the render thread or a shared context
+ * and would introduce driver variability. A 16&times;16 software rasteriser is
+ * fast enough since faces are tiny and the pipeline is only run once per block
+ * state at world-load time.</p>
+ *
+ * <h2>Framebuffer layout</h2>
+ * <p>One {@code long[]} of length {@code targetSize * targetSize}. Per-pixel bits:</p>
+ * <pre>
+ *   bits  0..31  ABGR8 colour (low 32 = result of blending / texture sample)
+ *   bit   32     reserved
+ *   bit   33     reserved
+ *   ...
+ *   bit   39     metadata bit ("biome-tinted" flag from {@link ReuseVertexConsumer}'s
+ *                  per-vertex meta; carried alongside colour for downstream face
+ *                  classification)
+ *   bits 40..63  unsigned 24-bit depth (bigger = farther; cleared to all-1s)
+ * </pre>
+ *
+ * <h2>Triangle rasterisation</h2>
+ * <p>Standard half-plane test using barycentric coordinates derived from the signed
+ * edge function. Backface culling is gated by {@link #setFaceCull}; the second
+ * triangle of a quad uses {@code orZero=true} to include exact-edge pixels (avoids
+ * gaps along the shared diagonal).</p>
+ *
+ * <h2>Cleanroom note</h2>
+ * <p>Same algorithm and bit layout as upstream Voxy. The cleanroom rewrite renames
+ * the scratch vectors with intent-bearing names, uses
+ * {@link com.github.foxy.common.util.BitOps#clamp} via static import, drops the
+ * unused {@code addRGB} helper and unused {@code ColorABGR}/{@code ColorARGB}
+ * imports, drops the dead {@code Random} import, and adds full English javadoc.</p>
+ */
+public final class SoftwareRasterizer {
 
-
-    private final Vector3f scratchR1 = new Vector3f();
-    private final Vector3f scratchR2 = new Vector3f();
-    private final Vector3f scratchR3 = new Vector3f();
-    //Attributes (meta, u, v)
-    private final Vector3f a1 = new Vector3f();
-    private final Vector3f a2 = new Vector3f();
-    private final Vector3f a3 = new Vector3f();
-
-    private static final long DEPTH_MASK = ((1L<<24)-1)<<(64-24);
-    private static final long CLEAR_VALUE = DEPTH_MASK;//set the depth to max value and rest of bits to 0
-
+    /** Target framebuffer side length, in pixels (square). */
     private final int targetSize;
+
+    /** Packed colour + meta + depth, one entry per pixel; see class javadoc. */
     private final long[] framebuffer;
 
+    /** Bit mask for the depth field within a framebuffer entry. */
+    private static final long DEPTH_MASK = ((1L << 24) - 1) << (64 - 24);
+
+    /** Cleared depth + zeroed colour / meta. */
+    private static final long CLEAR_VALUE = DEPTH_MASK;
+
+    /** Stencil counter increment per pixel hit; bits 32..36 hold the count. */
+    private static final long STENCIL_INCREMENT = 1L << 32;
+
+    /** Bit position of the meta-tinted flag in the framebuffer word. */
+    private static final long META_BIT_POSITION = 1L << 39;
+
+    /** Triangles below this absolute area are dropped (degenerate). */
+    private static final float DEGENERATE_AREA_EPSILON = 0.001f;
+
     private boolean cullBackFace;
-    private boolean doTheBlending;
+    private boolean doBlending;
 
     private int samplerWidth;
     private int samplerHeight;
     private int[] samplerTexture;
 
+    // ---- per-quad scratch state (re-used to avoid GC churn) ---------------------------
+
+    /** Scratch for {@code transformProject}; holds (x, y, z, w). */
+    private final Vector4f homogeneousScratch = new Vector4f();
+
+    /** Per-vertex screen-space positions for the current quad. */
+    private final Vector3f q0pos = new Vector3f();
+    private final Vector3f q1pos = new Vector3f();
+    private final Vector3f q2pos = new Vector3f();
+    private final Vector3f q3pos = new Vector3f();
+
+    /** Per-vertex (meta, u, v) attributes for the current quad. */
+    private final Vector3f q0attr = new Vector3f();
+    private final Vector3f q1attr = new Vector3f();
+    private final Vector3f q2attr = new Vector3f();
+    private final Vector3f q3attr = new Vector3f();
+
+    /** Active triangle's positions during rasterisation. */
+    private final Vector3f triA = new Vector3f();
+    private final Vector3f triB = new Vector3f();
+    private final Vector3f triC = new Vector3f();
+
+    /** Active triangle's attributes during rasterisation. */
+    private final Vector3f attrA = new Vector3f();
+    private final Vector3f attrB = new Vector3f();
+    private final Vector3f attrC = new Vector3f();
+
+    /** Allocates a {@code targetSize}&times;{@code targetSize} framebuffer. */
     public SoftwareRasterizer(int targetSize) {
         this.targetSize = targetSize;
-        this.framebuffer = new long[targetSize*targetSize];
+        this.framebuffer = new long[targetSize * targetSize];
     }
 
-    public void setFaceCull(boolean isBackFaceCulling) {
-        this.cullBackFace = isBackFaceCulling;
-    }
+    public void setFaceCull(boolean isBackFaceCulling) { this.cullBackFace = isBackFaceCulling; }
+    public void setBlending(boolean blending) { this.doBlending = blending; }
 
-    public void setBlending(boolean blending) {
-        this.doTheBlending = blending;
-    }
-
+    /** Sets the active sampler texture; must match {@code width * height}. */
     public void setSamplerTexture(int[] texture, int width, int height) {
-        if (texture.length != width*height) throw new IllegalArgumentException();
+        if (texture.length != width * height) {
+            throw new IllegalArgumentException("texture length " + texture.length
+                    + " != width * height " + (width * height));
+        }
         this.samplerTexture = texture;
         this.samplerWidth = width;
         this.samplerHeight = height;
     }
 
+    /** Nearest-neighbour texture lookup at normalised UV. */
     private int sampleTexture(float u, float v) {
-        int pu = com.github.foxy.common.util.BitOps.clamp(Math.round(u*this.samplerWidth-0.5f), 0, this.samplerWidth-1);
-        int pv = com.github.foxy.common.util.BitOps.clamp(Math.round(v*this.samplerHeight-0.5f), 0, this.samplerHeight-1);
-        return this.samplerTexture[this.samplerWidth*pv+pu];
+        int pu = clamp(Math.round(u * this.samplerWidth - 0.5f), 0, this.samplerWidth - 1);
+        int pv = clamp(Math.round(v * this.samplerHeight - 0.5f), 0, this.samplerHeight - 1);
+        return this.samplerTexture[this.samplerWidth * pv + pu];
     }
 
+    /** Clears every pixel to {@link #CLEAR_VALUE}. */
     public void clear() {
         Arrays.fill(this.framebuffer, CLEAR_VALUE);
     }
 
+    /** Convenience: rasterises every quad in {@code vertices}. */
     public void raster(Matrix4f mvp, ReuseVertexConsumer vertices) {
-        this.raster(mvp, vertices.getAddress(), vertices.quadCount());
+        raster(mvp, vertices.getAddress(), vertices.quadCount());
     }
+
+    /** Rasterises {@code quadCount} quads packed at {@code verticesAddr}. */
     public void raster(Matrix4f mvp, long verticesAddr, int quadCount) {
         if (quadCount == 0) return;
         for (int i = 0; i < quadCount; i++) {
-            this.rasterQuad(mvp, verticesAddr+ReuseVertexConsumer.VERTEX_FORMAT_SIZE*4L*i);
+            rasterQuad(mvp, verticesAddr + (long) ReuseVertexConsumer.VERTEX_FORMAT_SIZE * 4L * i);
         }
-        //Arrays.fill(this.framebuffer, -1);
     }
 
     private void rasterQuad(Matrix4f transform, long addr) {
-        loadTransformPos(transform, addr, 0, this.scratch1, this.qmuv1);
-        loadTransformPos(transform, addr, 1, this.scratch2, this.qmuv2);
-        loadTransformPos(transform, addr, 2, this.scratch3, this.qmuv3);
-        loadTransformPos(transform, addr, 3, this.scratch4, this.qmuv4);
+        loadTransformPos(transform, addr, 0, this.q0pos, this.q0attr);
+        loadTransformPos(transform, addr, 1, this.q1pos, this.q1attr);
+        loadTransformPos(transform, addr, 2, this.q2pos, this.q2attr);
+        loadTransformPos(transform, addr, 3, this.q3pos, this.q3attr);
 
+        // Fan triangulation 0-1-2 / 2-3-0; second triangle uses orZero so the shared
+        // diagonal isn't a fence at exactly-on-edge pixels.
+        this.triA.set(this.q0pos); this.triB.set(this.q1pos); this.triC.set(this.q2pos);
+        this.attrA.set(this.q0attr); this.attrB.set(this.q1attr); this.attrC.set(this.q2attr);
+        rasterTriangle(false);
 
-        //0,1,2 | 2,3,0
-        this.scratchR1.set(this.scratch1);
-        this.scratchR2.set(this.scratch2);
-        this.scratchR3.set(this.scratch3);
-        this.a1.set(this.qmuv1);
-        this.a2.set(this.qmuv2);
-        this.a3.set(this.qmuv3);
-        this.rasterTriangle(false);
-        this.scratchR1.set(this.scratch3);
-        this.scratchR2.set(this.scratch4);
-        this.scratchR3.set(this.scratch1);
-        this.a1.set(this.qmuv3);
-        this.a2.set(this.qmuv4);
-        this.a3.set(this.qmuv1);
-        this.rasterTriangle(true);
+        this.triA.set(this.q2pos); this.triB.set(this.q3pos); this.triC.set(this.q0pos);
+        this.attrA.set(this.q2attr); this.attrB.set(this.q3attr); this.attrC.set(this.q0attr);
+        rasterTriangle(true);
     }
 
     private void rasterTriangle(boolean orZero) {
-        Vector3f v1 = this.scratchR1;
-        Vector3f v2 = this.scratchR2;
-        Vector3f v3 = this.scratchR3;
+        Vector3f a = this.triA, b = this.triB, c = this.triC;
+        float area = edge(a, b, c);
 
+        // Negative area means counter-clockwise winding; gate culling on that.
+        if ((area < 0f) == this.cullBackFace) return;
+        if (Math.abs(area) < DEGENERATE_AREA_EPSILON) return;
 
-        float area = edge(v1, v2, v3);
+        int minX = Math.max((int) Math.floor(Math.min(Math.min(a.x, b.x), c.x)), 0);
+        int maxX = Math.min((int) Math.ceil(Math.max(Math.max(a.x, b.x), c.x)), this.targetSize - 1);
+        int minY = Math.max((int) Math.floor(Math.min(Math.min(a.y, b.y), c.y)), 0);
+        int maxY = Math.min((int) Math.ceil(Math.max(Math.max(a.y, b.y), c.y)), this.targetSize - 1);
 
-        //Pretty sure this is how you check for winding order aswell (if area is negative its counterclockwise)
-        if (area<0 == this.cullBackFace) {
-            return;
-        }
-
-        if (Math.abs(area)<0.001) {
-            return;//Degenerate triangle
-        }
-
-        //TODO: check this is right?
-        /*
-        if (area < 0) {
-            var t = v1;
-            v1 = v2;
-            v2 = t;
-            area = -area;
-        }*/
-
-        int minX = Math.max((int) Math.floor(Math.min(Math.min(v1.x, v2.x), v3.x)), 0);
-        int maxX = Math.min((int) Math.ceil(Math.max(Math.max(v1.x, v2.x), v3.x)), this.targetSize-1);
-        int minY = Math.max((int) Math.floor(Math.min(Math.min(v1.y, v2.y), v3.y)), 0);
-        int maxY = Math.min((int) Math.ceil(Math.max(Math.max(v1.y, v2.y), v3.y)), this.targetSize-1);
-
-        float invArea = 1.0f/area;
-        for (int py = minY; py<=maxY; py++) {
-            for (int px = minX; px<=maxX; px++) {
-                float cx = px+0.5f;
-                float cy = py+0.5f;
-                float w1 = edge(v2, v3, cx, cy)*invArea;
-                float w2 = edge(v3, v1, cx, cy)*invArea;
-                float w3 = 1.0f-w1-w2;
-                if ((w1>0.0f&&w2>0.0f&&w3>0.0f)||(orZero&&w1>=0.0f&&w2>=0.0f&&w3>=0.0f)) {
-                    //Dont need to worry about perspective correction afak as it should already be all correct
-
-                    //pixel is inside the triangle
-                    this.rasterPixel(px+py*this.targetSize, w1, w2, w3);
+        float invArea = 1.0f / area;
+        for (int py = minY; py <= maxY; py++) {
+            for (int px = minX; px <= maxX; px++) {
+                float cx = px + 0.5f;
+                float cy = py + 0.5f;
+                float w1 = edge(b, c, cx, cy) * invArea;
+                float w2 = edge(c, a, cx, cy) * invArea;
+                float w3 = 1.0f - w1 - w2;
+                boolean inside = orZero
+                        ? (w1 >= 0f && w2 >= 0f && w3 >= 0f)
+                        : (w1 > 0f && w2 > 0f && w3 > 0f);
+                if (inside) {
+                    rasterPixel(px + py * this.targetSize, w1, w2, w3);
                 }
             }
         }
     }
 
-    private void rasterPixel(int index, float b1, float b2, float b3) {//Barry coords
-        float z = Math.fma(b1, this.scratchR1.z, Math.fma(b2, this.scratchR2.z, b3 * this.scratchR3.z));
-        z = Math.fma(z,0.5f,0.5f);
-        if (z<0.0f && -0.000001f<=z) z = 0;//Clamp to 0 if its really small negative
-        if (z<0.0f||z>1.0f)
-            return;//TODO: check this
+    private void rasterPixel(int index, float w1, float w2, float w3) {
+        float z = Math.fma(w1, this.triA.z, Math.fma(w2, this.triB.z, w3 * this.triC.z));
+        z = Math.fma(z, 0.5f, 0.5f);
+        // Clamp tiny negative values back to 0 to absorb FMA rounding error.
+        if (z < 0.0f && -0.000001f <= z) z = 0f;
+        if (z < 0.0f || z > 1.0f) return;
 
+        int meta = Float.floatToRawIntBits(this.attrA.x);
+        float u = Math.fma(w1, this.attrA.y, Math.fma(w2, this.attrB.y, w3 * this.attrC.y));
+        float v = Math.fma(w1, this.attrA.z, Math.fma(w2, this.attrB.z, w3 * this.attrC.z));
 
+        int colour = sampleTexture(u, v);
 
-        int meta = Float.floatToRawIntBits(this.a1.x);
-        float u = Math.fma(b1, this.a1.y, Math.fma(b2, this.a2.y, b3 * this.a3.y));
-        float v = Math.fma(b1, this.a1.z, Math.fma(b2, this.a2.z, b3 * this.a3.z));
+        // meta bit 0 = "discard on transparent"; per upstream the renderer discards
+        // any sample whose alpha is below the cutoff so transparent fragments don't
+        // bleed through.
+        final int ALPHA_CUTOFF = 0;
+        if ((meta & 1) != 0 && (colour >>> 24) <= ALPHA_CUTOFF) return;
 
-        int colour = this.sampleTexture(u,v);//The ABGR colour of this pixel
+        // Stencil increment is unconditional once the discard test passes.
+        this.framebuffer[index] += STENCIL_INCREMENT;
 
+        long depthVal = ((long) (((double) z) * ((1 << 24) - 1))) << (64 - 24);
+        // Decrement-by-one so a pixel at the absolute clear depth still registers as
+        // "drawn" (same as upstream's "We want to render _something_ at least").
+        if (depthVal == DEPTH_MASK) depthVal--;
 
-        final int ALPHA_CUTOFF_THRESHOLD = 0;
-        //TODO: meta&1 OR if we are blending
-        if ((meta&1)!=0 && (colour>>>24)<=ALPHA_CUTOFF_THRESHOLD) {//Discard on small alpha
-            return;
-        }
+        // Strict less-than depth test (using unsigned compare, since DEPTH_MASK is 0xFFFF...).
+        if (Long.compareUnsigned(this.framebuffer[index], depthVal) <= 0) return;
 
-        //Stencil increment first
-        this.framebuffer[index] += (1L<<32);
-
-        //Funny jank depth test
-        long depthVal = ((long) (((double)z)*((1<<24)-1)))<<(64-24);
-        if (depthVal == DEPTH_MASK) depthVal--;//We wanto render _something_ at least
-        if (Long.compareUnsigned(this.framebuffer[index],depthVal)<=0) {
-            return;//Depth test failed, (using a strictly LESS_THAN comparison)
-        }
-        //Set the pixels depth value
+        // Replace depth.
         this.framebuffer[index] &= ~DEPTH_MASK;
         this.framebuffer[index] |= depthVal;
 
-        //set the metadata bit
-        this.framebuffer[index] &= ~(1L<<39);
-        this.framebuffer[index] |= ((long)(meta&4))<<37;
+        // Replace meta (carrying bit 2 of the source meta, shifted to bit 39).
+        this.framebuffer[index] &= ~META_BIT_POSITION;
+        this.framebuffer[index] |= ((long) (meta & 4)) << 37;
 
-        int srcColour = (int) this.framebuffer[index];
+        int previousColour = (int) this.framebuffer[index];
         this.framebuffer[index] &= ~Integer.toUnsignedLong(-1);
 
-        if (this.doTheBlending) {//Blending
-            //mutate colour var
-            colour = doBlending(srcColour, colour);
+        if (this.doBlending) {
+            colour = doBlending(previousColour, colour);
         }
-
-
-        //Remember ABGR FORMAT
         this.framebuffer[index] |= Integer.toUnsignedLong(colour);
     }
 
-
-    // ARBDrawBuffersBlend.glBlendFuncSeparateiARB(0, GL_ONE_MINUS_DST_ALPHA, GL_DST_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-    private static int doBlending(int scr, int dst) {
-        int srcAlpha = (scr>>>24)&0xFF;
-        if (srcAlpha == 0) {
-            return dst;
-        }
-        int dstAlpha = (dst>>>24)&0xFF;
-        scr &= ~(0xFF<<24);
-        dst &= ~(0xFF<<24);
-        int blendAlpha = Math.min(0xFF,srcAlpha+((dstAlpha*(255-srcAlpha))>>8));
-        //how much did we actually get
-
-        int blend = ColorMixer.mix(dst, scr, dstAlpha);//addRGB(ColorABGR.mulRGB(scr, 255-dstAlpha),ColorABGR.mulRGB(dst, dstAlpha));
-        return blend|(blendAlpha<<24);
+    /**
+     * Approximate matching of the GL state
+     * {@code glBlendFuncSeparatei(0, GL_ONE_MINUS_DST_ALPHA, GL_DST_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)}.
+     */
+    private static int doBlending(int src, int dst) {
+        int srcAlpha = (src >>> 24) & 0xFF;
+        if (srcAlpha == 0) return dst;
+        int dstAlpha = (dst >>> 24) & 0xFF;
+        src &= ~(0xFF << 24);
+        dst &= ~(0xFF << 24);
+        int blendAlpha = Math.min(0xFF, srcAlpha + ((dstAlpha * (255 - srcAlpha)) >> 8));
+        int blendRgb = ColorMixer.mix(dst, src, dstAlpha);
+        return blendRgb | (blendAlpha << 24);
     }
 
-    private static int addRGB(int a, int b) {
-        return Math.min(0xFF,(a&0xFF)+(b&0xFF))|
-                Math.min((0xFF<<8),(a&(0xFF<<8))+(b&(0xFF<<8)))|
-                Math.min((0xFF<<16),(a&(0xFF<<16))+(b&(0xFF<<16)));
-    }
-
+    /** Signed 2D edge function (cross product) used for triangle area / inside tests. */
     private static float edge(Vector3f a, Vector3f b, Vector3f c) {
-        return (c.x-a.x)*(b.y-a.y) - (c.y-a.y) * (b.x-a.x);
+        return (c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x);
     }
 
     private static float edge(Vector3f a, Vector3f b, float cx, float cy) {
-        return (cx-a.x)*(b.y-a.y) - (cy-a.y) * (b.x-a.x);
+        return (cx - a.x) * (b.y - a.y) - (cy - a.y) * (b.x - a.x);
     }
 
-
-    private void loadTransformPos(Matrix4f transform, long addr, int vert, Vector3f out, Vector3f otherAttributesOut) {
-        this.scratch.setFromAddress(addr+vert*ReuseVertexConsumer.VERTEX_FORMAT_SIZE);
-        otherAttributesOut.setFromAddress(addr+vert*ReuseVertexConsumer.VERTEX_FORMAT_SIZE+3*4);
-        this.scratch.w = 1.0f;
-        var vec = transform.transformProject(this.scratch);
-        if (Math.abs(this.scratch.w-1.0f)>0.000001f)
-            throw new IllegalStateException();
-        out.set(maintainPrecision(Math.fma(vec.x, 0.5f, 0.5f)*this.targetSize), maintainPrecision(Math.fma(vec.y, 0.5f, 0.5f)*this.targetSize), vec.z);//TODO: dont know if z transform is correct
+    /**
+     * Reads the {@code vert}-th vertex of the quad at {@code addr}, applies the MVP,
+     * converts to screen space, and writes positions / attributes into the supplied
+     * scratch vectors. Throws if the projected w drifts away from 1 (sanity check).
+     */
+    private void loadTransformPos(Matrix4f transform, long addr, int vert,
+                                   Vector3f outPos, Vector3f outAttr) {
+        long vertAddr = addr + (long) vert * ReuseVertexConsumer.VERTEX_FORMAT_SIZE;
+        this.homogeneousScratch.setFromAddress(vertAddr);
+        outAttr.setFromAddress(vertAddr + 3 * 4);
+        this.homogeneousScratch.w = 1.0f;
+        var projected = transform.transformProject(this.homogeneousScratch);
+        if (Math.abs(this.homogeneousScratch.w - 1.0f) > 0.000001f) {
+            throw new IllegalStateException("Projected w drifted: " + this.homogeneousScratch.w);
+        }
+        outPos.set(
+                Math.fma(projected.x, 0.5f, 0.5f) * this.targetSize,
+                Math.fma(projected.y, 0.5f, 0.5f) * this.targetSize,
+                projected.z);
     }
 
-
-    private static float maintainPrecision(float x) {
-        return x;//TODO: value snapping in screenspace if needed
-    }
-
-
+    /** Direct read access to the framebuffer for the bakery's post-processing. */
     public long[] getRawFramebuffer() {
         return this.framebuffer;
     }

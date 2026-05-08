@@ -1,4 +1,4 @@
-#import <voxy:lod/pos_util.glsl>
+#import <foxy:lod/pos_util.glsl>
 layout(binding = NODE_DATA_BINDING, std430) restrict buffer NodeData {
 //Needs to be read and writeable for marking data,
 //(could do an evil violation, make this readonly, then have a writeonly varient, which means that writing might not be visible but will show up by the next frame)

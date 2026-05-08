@@ -1,6 +1,6 @@
 #version 460
 
-#import <voxy:util/depthutils.glsl>
+#import <foxy:util/depthutils.glsl>
 
 layout(binding = 0, std140) uniform SceneUniform {
     mat4 MVP;
@@ -55,4 +55,4 @@ void main() {
 
 
 //Undefine depth stuff
-#import <voxy:util/depthutils.glsl>
+#import <foxy:util/depthutils.glsl>

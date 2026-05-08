@@ -81,6 +81,14 @@ public class FoxyRenderSystem {
         world.acquireRef();
         Logger.info("Creating Foxy render system");
 
+        // Cleanroom DownloadStream uses lazy init() instead of upstream's
+        // static-final allocation (which would have triggered GL traffic at
+        // class-load time). The render thread is GL-current here, so init now.
+        // UploadStream still uses the static-final pattern; no init needed.
+        if (DownloadStream.INSTANCE == null) {
+            DownloadStream.initDefault(); // 32 MiB
+        }
+
         System.gc();
 
         if (Minecraft.getInstance().options.renderDistance().get()<3) {

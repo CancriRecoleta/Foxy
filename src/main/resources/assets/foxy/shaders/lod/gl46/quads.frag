@@ -33,15 +33,15 @@ layout(location = 0) out vec4 outColour;
 
 //Bind the model buffer and import the model system as we need it
 #define MODEL_BUFFER_BINDING 3
-#import <voxy:lod/block_model.glsl>
+#import <foxy:lod/block_model.glsl>
 
 #endif
 
-#import <voxy:lod/gl46/bindings.glsl>
-#import <voxy:lod/lighting.glsl>
+#import <foxy:lod/gl46/bindings.glsl>
+#import <foxy:lod/lighting.glsl>
 
 
-#import <voxy:util/depthutils.glsl>
+#import <foxy:util/depthutils.glsl>
 
 
 vec4 uint2vec4RGBA(uint colour) {
@@ -248,5 +248,5 @@ colour = textureGrad(blockModelAtlas, texPos, dx, dy);
 //#endif
 
 //Undefine the depth stuff
-#import <voxy:util/depthutils.glsl>
+#import <foxy:util/depthutils.glsl>
 

@@ -1,6 +1,6 @@
 #version 450
 
-#import <voxy:util/depthutils.glsl>
+#import <foxy:util/depthutils.glsl>
 
 layout(location = 0) out vec2 uv;
 void main() {

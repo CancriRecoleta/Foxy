@@ -12,7 +12,7 @@
 // substantually for performance (for both persistent threads and incremental)
 
 
-#import <voxy:util/depthutils.glsl>
+#import <foxy:util/depthutils.glsl>
 
 layout(binding = HIZ_BINDING) uniform sampler2D hizDepthSampler;
 

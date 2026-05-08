@@ -6,9 +6,9 @@
 #define VISIBILITY_BUFFER_BINDING 2
 #define INDIRECT_SECTION_LOOKUP_BINDING 3
 
-#import <voxy:lod/section.glsl>
-#import <voxy:lod/gl46/bindings.glsl>
-#import <voxy:util/depthutils.glsl>
+#import <foxy:lod/section.glsl>
+#import <foxy:lod/gl46/bindings.glsl>
+#import <foxy:util/depthutils.glsl>
 
 flat out uint id;
 flat out uint value;
@@ -58,4 +58,4 @@ void main() {
 
 
 //Undefine depth stuff
-#import <voxy:util/depthutils.glsl>
+#import <foxy:util/depthutils.glsl>

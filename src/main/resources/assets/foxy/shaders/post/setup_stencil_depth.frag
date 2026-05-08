@@ -3,7 +3,7 @@
 layout(binding = 0) uniform sampler2D depthTex;
 layout(location = 1) uniform vec2 scaleFactor;
 
-#import <voxy:util/depthutils.glsl>
+#import <foxy:util/depthutils.glsl>
 
 in vec2 UV;
 void main() {

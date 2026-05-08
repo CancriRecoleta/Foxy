@@ -12,7 +12,7 @@ layout(location = 5) uniform vec4 fogColour;
 #endif
 #endif
 
-#import <voxy:util/depthutils.glsl>
+#import <foxy:util/depthutils.glsl>
 
 out vec4 colour;
 in vec2 UV;

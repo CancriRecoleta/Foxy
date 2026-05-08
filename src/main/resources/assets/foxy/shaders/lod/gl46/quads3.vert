@@ -20,10 +20,10 @@
 #define USE_NV_BARRY
 #endif
 
-#import <voxy:lod/quad_format.glsl>
-#import <voxy:lod/block_model.glsl>
-#import <voxy:lod/gl46/bindings.glsl>
-#import <voxy:lod/quad_util.glsl>
+#import <foxy:lod/quad_format.glsl>
+#import <foxy:lod/block_model.glsl>
+#import <foxy:lod/gl46/bindings.glsl>
+#import <foxy:lod/quad_util.glsl>
 
 layout(location = 0) out flat uvec4 interData;
 #ifndef USE_NV_BARRY

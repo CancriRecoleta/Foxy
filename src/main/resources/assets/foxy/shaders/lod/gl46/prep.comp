@@ -5,7 +5,7 @@ layout(local_size_x = 1) in;
 #define DRAW_COUNT_BUFFER_BINDING 1
 #define INDIRECT_SECTION_LOOKUP_BINDING 2
 
-#import <voxy:lod/gl46/bindings.glsl>
+#import <foxy:lod/gl46/bindings.glsl>
 
 void main() {
     cmdGenDispatchX = ((sectionCount+127)/128);

@@ -8,9 +8,9 @@
 #define LIGHTING_SAMPLER_BINDING 1
 
 
-#import <voxy:lod/quad_format.glsl>
-#import <voxy:lod/block_model.glsl>
-#import <voxy:lod/gl46/bindings.glsl>
+#import <foxy:lod/quad_format.glsl>
+#import <foxy:lod/block_model.glsl>
+#import <foxy:lod/gl46/bindings.glsl>
 
 layout(location = 6) out flat uint quadDebug;
 

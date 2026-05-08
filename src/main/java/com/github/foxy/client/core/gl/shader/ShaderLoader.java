@@ -44,7 +44,11 @@ public final class ShaderLoader {
      * {@code glShaderSource}.
      */
     public static String parse(String id) {
-        ResourceLocation root = ResourceLocation.tryParse(id);
+        // Upstream Voxy uses ids like "Foxy:util/scatter.comp" (capitalised namespace).
+        // 1.20.1 ResourceLocation enforces a strict [a-z0-9_.-]+ namespace charset and
+        // rejects uppercase, so lowercase the whole id here so the dozens of upstream
+        // call sites keep working without a fleet of sed-style edits.
+        ResourceLocation root = ResourceLocation.tryParse(id.toLowerCase(java.util.Locale.ROOT));
         if (root == null) {
             throw new IllegalArgumentException("Invalid shader resource id: " + id);
         }
@@ -68,7 +72,11 @@ public final class ShaderLoader {
                 if (!m.matches()) {
                     throw new IllegalArgumentException("Malformed #import directive: " + line);
                 }
-                ResourceLocation imported = ResourceLocation.tryBuild(m.group("namespace"), m.group("path"));
+                // Lower-case for the same reason as the entry-point parse(); GLSL
+                // assets never contain uppercase characters in their on-disk paths.
+                ResourceLocation imported = ResourceLocation.tryBuild(
+                        m.group("namespace").toLowerCase(java.util.Locale.ROOT),
+                        m.group("path").toLowerCase(java.util.Locale.ROOT));
                 if (imported == null) {
                     throw new IllegalArgumentException("Invalid #import target in: " + line);
                 }
