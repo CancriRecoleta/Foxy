@@ -104,6 +104,9 @@ public final class FoxyInstance {
     /** Identifier this instance is bound to. */
     public WorldIdentifier identifier() { return this.identifier; }
 
+    /** Root directory containing this instance's storage config and per-world stores. */
+    public Path basePath() { return this.basePath; }
+
     /** Shared {@link ImportManager}; owns one importer per engine. */
     public ImportManager importManager() { return this.importManager; }
 

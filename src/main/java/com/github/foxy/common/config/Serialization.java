@@ -35,7 +35,6 @@ public class Serialization {
             "com.github.foxy.common.config.storage.other.FragmentedStorageBackendAdaptor$Config2",
             "com.github.foxy.common.config.storage.other.ReadonlyCachingLayer$Config",
             "com.github.foxy.common.config.compressors.LZ4Compressor$Config",
-            "com.github.foxy.common.config.compressors.LZMACompressor$Config",
             "com.github.foxy.common.config.compressors.ZSTDCompressor$Config"
     );
 

@@ -82,7 +82,7 @@ public class SectionSavingService {
 
     public void shutdown() {
         if (this.service.numJobs() != 0) {
-            Logger.error("Foxy section saving still in progress, estimated " + this.service.numJobs() + " sections remaining.");
+            Logger.warn("Foxy section saving still in progress, estimated " + this.service.numJobs() + " sections remaining; draining before close.");
             this.service.blockTillEmpty();
         }
         this.service.shutdown();

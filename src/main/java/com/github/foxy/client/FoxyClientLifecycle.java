@@ -76,6 +76,10 @@ public final class FoxyClientLifecycle {
                 rendererCreateAttempted = true;
                 rendererHook.Foxy$createRenderer();
             }
+            instance = FoxyInstance.current();
+            if (instance != null) {
+                FoxyAutoBackfill.trySchedule(mc, instance, instance.getOrCreateEngine());
+            }
             pendingEnter = false;
         } catch (Throwable t) {
             if (pendingEnter) {

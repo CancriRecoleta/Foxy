@@ -6,6 +6,8 @@
   "foxy.options.enable_rendering.tooltip": "Draw Foxy low-detail terrain independently from vanilla render distance.",
   "foxy.options.ingest_enabled.name": "Ingest loaded chunks",
   "foxy.options.ingest_enabled.tooltip": "Store loaded chunk sections so distant LOD can be rebuilt later.",
+  "foxy.options.auto_backfill_singleplayer.name": "Backfill singleplayer worlds",
+  "foxy.options.auto_backfill_singleplayer.tooltip": "Import existing singleplayer region files in the background so LOD is not limited to chunks loaded by vanilla.",
   "foxy.options.section_render_distance.name": "Foxy LOD distance",
   "foxy.options.section_render_distance.tooltip": "Radius of Foxy top-level LOD cells. This is separate from vanilla/Embeddium render distance.",
   "foxy.options.section_render_distance.value": "%s LOD cells",
