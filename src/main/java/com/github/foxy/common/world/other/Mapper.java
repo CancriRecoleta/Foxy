@@ -183,6 +183,22 @@ public class Mapper {
         return getBlockStateOpacity(getBlockId(mappingId));
     }
 
+    /**
+     * Geometric "shape tier" of a block state, used by {@link Mipper#mip} to prefer
+     * a full-cube child voxel over a partial-cube (stair / slab / wall) or
+     * decoration (plant / vine) when picking the representative for the next LOD
+     * level. Values are coarse on purpose:
+     * <ul>
+     *   <li>{@code 3} &mdash; fills the entire voxel cube (stone, planks, leaves).</li>
+     *   <li>{@code 2} &mdash; partial cube (stair, slab, wall, fence post).</li>
+     *   <li>{@code 1} &mdash; non-collidable decoration (cross models like grass / vines).</li>
+     *   <li>{@code 0} &mdash; air (never returned through this accessor).</li>
+     * </ul>
+     */
+    public int getBlockStateShapeTier(int blockId) {
+        return this.blockId2stateEntry.get(blockId).shapeTier;
+    }
+
     // ---- registry mutation (rare path) ---------------------------------------------------
 
     private StateEntry registerNewBlockState(BlockState state) {
@@ -323,11 +339,13 @@ public class Mapper {
 
     // ---- serialized entry types ---------------------------------------------------------
 
-    /** A registered (id, BlockState) pair plus its precomputed light-block opacity. */
+    /** A registered (id, BlockState) pair plus its precomputed light-block opacity and shape tier. */
     public static final class StateEntry {
         public final int id;
         public final BlockState state;
         public final int opacity;
+        /** See {@link Mapper#getBlockStateShapeTier(int)} for the value scale. */
+        public final int shapeTier;
 
         public StateEntry(int id, BlockState state) {
             this.id = id;
@@ -341,6 +359,36 @@ public class Mapper {
                 // sentinel level/pos because the implementations we care about don't read
                 // either parameter.
                 this.opacity = state.getLightBlock(EmptyBlockGetter.INSTANCE, BlockPos.ZERO);
+            }
+            this.shapeTier = computeShapeTier(state);
+        }
+
+        /**
+         * Classifies a block state by how much of its voxel cube it visually fills,
+         * for the LOD mip representative pick. Most {@link BlockBehaviour} APIs we
+         * need (collision shape, light-block) are level/pos independent for vanilla
+         * blocks, so {@link EmptyBlockGetter#INSTANCE} + {@link BlockPos#ZERO} as
+         * stand-ins is safe; modded blocks that consult level/pos here will fall
+         * through to the partial-cube tier, which is the correct conservative
+         * default.
+         */
+        private static int computeShapeTier(BlockState state) {
+            if (state.isAir()) return 0;
+            try {
+                if (state.isCollisionShapeFullBlock(EmptyBlockGetter.INSTANCE, BlockPos.ZERO)) {
+                    return 3; // full cube
+                }
+                var collision = state.getCollisionShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO);
+                if (collision.isEmpty()) {
+                    // Plants, vines, glow lichen, lily pads &mdash; non-collidable
+                    // decoration that should never outrank a real cube in mip.
+                    return 1;
+                }
+                return 2; // partial cube (stair, slab, wall, fence post, etc.)
+            } catch (Throwable t) {
+                // Some modded blocks throw when probed without a real level; treat as
+                // partial cube so they're not wrongly preferred over real full cubes.
+                return 2;
             }
         }
 

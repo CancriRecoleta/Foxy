@@ -67,7 +67,12 @@ public final class FoxyClientLifecycle {
             var id = new WorldIdentifier(namespace, level.dimension(), 0L);
             var instance = FoxyInstance.current();
             if (instance == null) {
-                FoxyInstance.enter(id, resolveStorageBasePath(mc));
+                instance = FoxyInstance.enter(id, resolveStorageBasePath(mc));
+                // ImportManager keeps a single broadcaster slot and starts with
+                // a no-op; wire the in-game UI feedback exactly once per
+                // FoxyInstance so action-bar progress and chat completion
+                // messages reach the user without any explicit command.
+                instance.importManager().setBroadcaster(FoxyImportFeedback.createBroadcaster());
                 Logger.info("FoxyClientLifecycle: entered world from " + source + " as " + id);
             }
 
@@ -78,7 +83,13 @@ public final class FoxyClientLifecycle {
             }
             instance = FoxyInstance.current();
             if (instance != null) {
-                FoxyAutoBackfill.trySchedule(mc, instance, instance.getOrCreateEngine());
+                // Per-tick poll: trySchedule is idempotent within a session (a
+                // CHECKED_THIS_SESSION key plus a marker file de-dupes both
+                // between ticks and across runs). This is what gives us
+                // dimension-aware backfill: when the player walks through a
+                // portal, mc.level swaps to the nether ClientLevel and the
+                // next tick's call resolves to the nether engine.
+                FoxyAutoBackfill.trySchedule(mc, instance);
             }
             pendingEnter = false;
         } catch (Throwable t) {

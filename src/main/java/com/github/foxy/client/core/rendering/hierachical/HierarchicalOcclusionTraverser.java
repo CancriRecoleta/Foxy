@@ -398,6 +398,14 @@ public class HierarchicalOcclusionTraverser {
     private static final long SCRATCH = MemoryUtil.nmemAlloc(32);//32 bytes of scratch memory
 
     public void addDebug(List<String> debug) {
-        debug.add("TLN#: " + this.topNodeCount);
+        //Conditionally add debug
+        if (this.topNodeCount>this.idx2topNodeMapping.length/2) {
+            debug.add("TLN#: " + this.topNodeCount);
+        }
+    }
+
+    /** Number of currently-tracked top-level LOD nodes; exposed for /foxy status. */
+    public int getTopNodeCount() {
+        return this.topNodeCount;
     }
 }

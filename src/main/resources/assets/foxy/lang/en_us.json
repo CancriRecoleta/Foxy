@@ -11,8 +11,13 @@
   "foxy.options.section_render_distance.name": "Foxy LOD distance",
   "foxy.options.section_render_distance.tooltip": "Radius of Foxy top-level LOD cells. This is separate from vanilla/Embeddium render distance.",
   "foxy.options.section_render_distance.value": "%s LOD cells",
+  "foxy.options.vanilla_view_distance.name": "Vanilla view distance",
+  "foxy.options.vanilla_view_distance.tooltip": "Sets Minecraft's own render distance (the inner ring of fully-detailed chunks). Edits are written straight into Minecraft's options, so Embeddium's Quality page reflects the same value.",
+  "foxy.options.vanilla_view_distance.value": "%s chunks",
   "foxy.options.service_threads.name": "Foxy worker threads",
   "foxy.options.service_threads.tooltip": "Background workers used for ingest, mesh generation, and storage tasks.",
   "foxy.options.keep_embeddium_builder_threads.name": "Keep Embeddium builder threads",
-  "foxy.options.keep_embeddium_builder_threads.tooltip": "When enabled, Foxy does not borrow Embeddium chunk builder thread capacity."
+  "foxy.options.keep_embeddium_builder_threads.tooltip": "When enabled, Foxy does not borrow Embeddium chunk builder thread capacity.",
+  "foxy.options.debug_disable_vanilla_terrain.name": "[Debug] Disable vanilla terrain",
+  "foxy.options.debug_disable_vanilla_terrain.tooltip": "Suppresses Embeddium's chunk rendering so only Foxy LOD remains visible. Diagnostic only — used to confirm whether the LOD output exists past vanilla view distance. Leave off for normal play."
 }

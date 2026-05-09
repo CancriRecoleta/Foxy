@@ -11,8 +11,13 @@
   "foxy.options.section_render_distance.name": "Foxy LOD 距离",
   "foxy.options.section_render_distance.tooltip": "Foxy 顶层 LOD 单元半径；与原版和 Embeddium 视距分离。",
   "foxy.options.section_render_distance.value": "%s 个 LOD 单元",
+  "foxy.options.vanilla_view_distance.name": "原版视距",
+  "foxy.options.vanilla_view_distance.tooltip": "设置 Minecraft 自身的视距（内圈完整细节区块）。修改会直接写入原版 options，Embeddium 的画质页面同步显示同一个值。",
+  "foxy.options.vanilla_view_distance.value": "%s 区块",
   "foxy.options.service_threads.name": "Foxy 工作线程",
   "foxy.options.service_threads.tooltip": "用于摄取、网格生成和存储任务的后台线程数量。",
   "foxy.options.keep_embeddium_builder_threads.name": "保留 Embeddium 构建线程",
-  "foxy.options.keep_embeddium_builder_threads.tooltip": "启用后，Foxy 不会借用 Embeddium 区块构建线程容量。"
+  "foxy.options.keep_embeddium_builder_threads.tooltip": "启用后，Foxy 不会借用 Embeddium 区块构建线程容量。",
+  "foxy.options.debug_disable_vanilla_terrain.name": "[调试] 禁用原版地形",
+  "foxy.options.debug_disable_vanilla_terrain.tooltip": "让 Embeddium 不渲染原版区块，屏幕上只剩 Foxy LOD。仅用于诊断 LOD 是否在原版视距外仍被生成；正常游玩请关闭。"
 }

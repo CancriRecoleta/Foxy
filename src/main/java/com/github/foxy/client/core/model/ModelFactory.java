@@ -5,9 +5,9 @@ import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectSet;
+import com.github.foxy.client.compat.ChunkSectionLayer;
 import com.github.foxy.client.core.gl.GlBuffer;
 import com.github.foxy.client.core.gl.GlTexture;
-import com.github.foxy.client.compat.ChunkSectionLayer;
 import com.github.foxy.client.core.model.bakery.SoftwareModelTextureBakery;
 import com.github.foxy.client.core.rendering.util.UploadStream;
 import com.github.foxy.common.Logger;
@@ -24,6 +24,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
 import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.ColorResolver;
@@ -36,6 +37,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.lighting.LevelLightEngine;
 import net.minecraft.world.level.material.FluidState;
+import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.system.MemoryUtil;
 
@@ -187,7 +189,7 @@ public class ModelFactory {
             } else {
                 blockState = sb.baseState;
             }*/
-            blockState = sb.defaultBlockState().getBlock().withPropertiesOf(blockState);
+            blockState = sb.baseState.getBlock().withPropertiesOf(blockState);
         }
 
         //Before we enqueue the baking of this blockstate, we must check if it has a fluid state associated with it
@@ -274,13 +276,11 @@ public class ModelFactory {
     public void processAllThings() {
         var biomeEntry = this.biomeQueue.poll();
         while (biomeEntry != null) {
-            var biomeRegistry = Minecraft.getInstance().level.registryAccess().lookupOrThrow(Registries.BIOME);
-            // tryParse over the deprecated raw-string constructor. Malformed stored ids
-            // fall through to mcbiomeEntry == empty and the default-biome branch below.
+            var biomeRegistry = Minecraft.getInstance().level.registryAccess().registryOrThrow(Registries.BIOME);
             ResourceLocation biomeLoc = ResourceLocation.tryParse(biomeEntry.biome);
             var mcbiomeEntry = biomeLoc == null
-                    ? java.util.Optional.<net.minecraft.core.Holder.Reference<net.minecraft.world.level.biome.Biome>>empty()
-                    : biomeRegistry.get(ResourceKey.create(Registries.BIOME, biomeLoc));
+                    ? java.util.Optional.<Holder.Reference<Biome>>empty()
+                    : biomeRegistry.getHolder(ResourceKey.create(Registries.BIOME, biomeLoc));
             if (!mcbiomeEntry.isPresent()) {
                 Logger.error("Could not find biome: " + biomeEntry.biome + " using default");
             }
@@ -697,7 +697,7 @@ public class ModelFactory {
         if (isEmissive) {
             return 15;//full bright
         }
-        return com.github.foxy.common.util.BitOps.clamp(state.getLightEmission(),0,15);
+        return Mth.clamp(state.getLightEmission(),0,15);
     }
 
     private static final class BiomeUploadResult implements ResultUploader {
@@ -778,7 +778,12 @@ public class ModelFactory {
     }
 
     private static BlockColor getColourProvider(Block block) {
-        return (state, getter, pos, tintIndex) -> Minecraft.getInstance().getBlockColors().getColor(state, getter, pos, tintIndex);
+        // 1.20.1 BlockColors keeps providers in a private Map<Holder.Reference<Block>, BlockColor>
+        // (exposed via AT). Using ForgeRegistries.BLOCKS.getDelegateOrThrow gets the matching
+        // Holder.Reference, then map.get returns the registered BlockColor or null. Returning
+        // null preserves upstream voxy semantics so downstream "has a colour provider" checks
+        // remain correct (lambda-based shims would always be non-null and break the logic).
+        return Minecraft.getInstance().getBlockColors().blockColors.get(ForgeRegistries.BLOCKS.getDelegateOrThrow(block));
     }
 
     //TODO: add a method to detect biome dependent colours (can do by detecting if getColor is ever called)

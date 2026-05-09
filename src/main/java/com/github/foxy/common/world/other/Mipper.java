@@ -8,20 +8,38 @@ import static com.github.foxy.common.world.other.Mapper.withLight;
  * <p>Given the eight child voxels of a {@code 2x2x2} cube, returns one packed id that
  * represents the cube at the next-coarser LOD level. Selection rule:</p>
  * <ol>
- *   <li>If any child is non-air, return the child with the highest static opacity. Ties
- *       break toward the child whose 3-bit corner index is highest, which biases the
- *       chosen voxel toward the {@code +x +y +z} corner &mdash; the corner most likely to
- *       be visible from a typical down-facing camera.</li>
+ *   <li>If any child is non-air, return the child whose
+ *       {@code (shapeTier, opacity, corner)} key is the largest. {@code shapeTier}
+ *       prefers a full cube over a stair/slab and a stair/slab over a plant/vine,
+ *       so distant slabs no longer materialise as full cubes whenever a real full
+ *       cube is sitting next to them. {@code opacity} keeps the existing
+ *       leaves-vs-air bias. {@code corner} is the final tiebreak and biases toward
+ *       the {@code +x +y +z} child &mdash; the corner most likely to be visible
+ *       from a typical down-facing camera.</li>
  *   <li>If all eight children are air, average the per-channel light nibbles and return
  *       an air voxel with that combined light. This keeps mipped sky/torchlight smooth
  *       across LOD transitions.</li>
  * </ol>
+ *
+ * <h2>Selection key bit layout</h2>
+ * <pre>
+ *   bits 7..8   shapeTier (0=air, 1=plant, 2=partial cube, 3=full cube)
+ *   bits 3..6   opacity   (0..15)
+ *   bits 0..2   corner    (0..7)
+ * </pre>
+ * Total 9 bits, kept as a signed {@code int} where {@code -1} flags "all children
+ * are air" and triggers the light-averaging branch.
  *
  * <p>The opacity weighting prevents distant trees and similar leaf canopies from
  * disappearing at higher LODs &mdash; see {@link Mapper.StateEntry}'s opacity override.</p>
  */
 public final class Mipper {
     private Mipper() {}
+
+    /** Packs (shapeTier, opacity, corner) into the comparable selection key. */
+    private static int key(int shapeTier, int opacity, int corner) {
+        return (shapeTier << 7) | (opacity << 3) | corner;
+    }
 
     /**
      * Folds eight child voxels into one parent voxel using the rules described in the
@@ -31,18 +49,39 @@ public final class Mipper {
     public static long mip(long I000, long I100, long I001, long I101,
                            long I010, long I110, long I011, long I111,
                            Mapper mapper) {
-        // Pack opacity into bits 4..7 and the 3-bit corner index into bits 0..2; taking
-        // the max over all non-air corners then yields both the winning opacity and the
-        // tiebreak corner in one comparison.
         int max = -1;
-        if (!Mapper.isAir(I111)) max = (mapper.getBlockStateOpacity(Mapper.getBlockId(I111)) << 4) | 0b111;
-        if (!Mapper.isAir(I110)) max = Math.max((mapper.getBlockStateOpacity(Mapper.getBlockId(I110)) << 4) | 0b110, max);
-        if (!Mapper.isAir(I011)) max = Math.max((mapper.getBlockStateOpacity(Mapper.getBlockId(I011)) << 4) | 0b011, max);
-        if (!Mapper.isAir(I010)) max = Math.max((mapper.getBlockStateOpacity(Mapper.getBlockId(I010)) << 4) | 0b010, max);
-        if (!Mapper.isAir(I101)) max = Math.max((mapper.getBlockStateOpacity(Mapper.getBlockId(I101)) << 4) | 0b101, max);
-        if (!Mapper.isAir(I100)) max = Math.max((mapper.getBlockStateOpacity(Mapper.getBlockId(I100)) << 4) | 0b100, max);
-        if (!Mapper.isAir(I001)) max = Math.max((mapper.getBlockStateOpacity(Mapper.getBlockId(I001)) << 4) | 0b001, max);
-        if (!Mapper.isAir(I000)) max = Math.max((mapper.getBlockStateOpacity(Mapper.getBlockId(I000)) << 4), max);
+        if (!Mapper.isAir(I111)) {
+            int id = Mapper.getBlockId(I111);
+            max = key(mapper.getBlockStateShapeTier(id), mapper.getBlockStateOpacity(id), 0b111);
+        }
+        if (!Mapper.isAir(I110)) {
+            int id = Mapper.getBlockId(I110);
+            max = Math.max(key(mapper.getBlockStateShapeTier(id), mapper.getBlockStateOpacity(id), 0b110), max);
+        }
+        if (!Mapper.isAir(I011)) {
+            int id = Mapper.getBlockId(I011);
+            max = Math.max(key(mapper.getBlockStateShapeTier(id), mapper.getBlockStateOpacity(id), 0b011), max);
+        }
+        if (!Mapper.isAir(I010)) {
+            int id = Mapper.getBlockId(I010);
+            max = Math.max(key(mapper.getBlockStateShapeTier(id), mapper.getBlockStateOpacity(id), 0b010), max);
+        }
+        if (!Mapper.isAir(I101)) {
+            int id = Mapper.getBlockId(I101);
+            max = Math.max(key(mapper.getBlockStateShapeTier(id), mapper.getBlockStateOpacity(id), 0b101), max);
+        }
+        if (!Mapper.isAir(I100)) {
+            int id = Mapper.getBlockId(I100);
+            max = Math.max(key(mapper.getBlockStateShapeTier(id), mapper.getBlockStateOpacity(id), 0b100), max);
+        }
+        if (!Mapper.isAir(I001)) {
+            int id = Mapper.getBlockId(I001);
+            max = Math.max(key(mapper.getBlockStateShapeTier(id), mapper.getBlockStateOpacity(id), 0b001), max);
+        }
+        if (!Mapper.isAir(I000)) {
+            int id = Mapper.getBlockId(I000);
+            max = Math.max(key(mapper.getBlockStateShapeTier(id), mapper.getBlockStateOpacity(id), 0b000), max);
+        }
 
         if (max != -1) {
             return switch (max & 0b111) {

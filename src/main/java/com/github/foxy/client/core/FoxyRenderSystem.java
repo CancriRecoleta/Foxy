@@ -130,6 +130,29 @@ public class FoxyRenderSystem {
                 Arrays.stream(world.getMapper().getBiomeEntries()).forEach(this.modelService::addBiome);
                 world.getMapper().setBiomeCallback(this.modelService::addBiome);
 
+                // Eagerly pre-enqueue every block state the Mapper already knows about
+                // (i.e. every state that's been ingested or imported by now). Without
+                // this, mesh-gen workers feed bake requests one-at-a-time as they
+                // discover missing models, which trickles in over many minutes. With
+                // this, the bakery worker has a single big drain to chew through and
+                // its progress is steady and predictable.
+                //
+                // Also wire a callback so newly-registered block states (live ingest
+                // running into a never-before-seen block) get enqueued immediately
+                // rather than waiting for the next mesh-gen request to surface them.
+                int preEnqueued = 0;
+                for (var entry : world.getMapper().getStateEntries()) {
+                    if (entry == null || entry.id == 0) continue; // skip air
+                    this.modelService.requestBlockBake(entry.id);
+                    preEnqueued++;
+                }
+                world.getMapper().setStateCallback(entry -> {
+                    if (entry != null && entry.id != 0) {
+                        this.modelService.requestBlockBake(entry.id);
+                    }
+                });
+                Logger.info("Foxy: pre-enqueued " + preEnqueued + " known block states for bake");
+
                 this.nodeManager.start();
             }
 
@@ -183,6 +206,12 @@ public class FoxyRenderSystem {
         }
     }
 
+
+    /** Diagnostic accessors used by /foxy status. */
+    public HierarchicalOcclusionTraverser getTraversal() { return this.traversal; }
+    public RenderGenerationService getRenderGenerationService() { return this.renderGen; }
+    public ModelBakerySubsystem getModelBakery() { return this.modelService; }
+    public AsyncNodeManager getNodeManager() { return this.nodeManager; }
 
     public Viewport<?> setupViewport(Matrix4fc vanillaProjection, Matrix4fc modelView, FogParameters fogParameters, double cameraX, double cameraY, double cameraZ) {
         var viewport = this.getViewport();

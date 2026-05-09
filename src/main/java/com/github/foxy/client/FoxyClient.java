@@ -66,6 +66,6 @@ public final class FoxyClient {
     }
 
     public static boolean disableSodiumChunkRender() {
-        return false;// getOcclusionDebugState() != 0;
+        return com.github.foxy.client.config.FoxyConfig.CONFIG.debugDisableVanillaTerrain;
     }
 }

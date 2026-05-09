@@ -61,11 +61,7 @@ public class WorldUpdater {
                     neighbors |= ((section.z^(section.z+1))>>(lvl+1))==0?0:1<<5;//+z
                 }
 
-                int updateFlags = (didStateChange?UPDATE_TYPE_BLOCK_BIT:0)|(emptinessStateChange!=0?UPDATE_TYPE_CHILD_EXISTENCE_BIT:0);
-                into.markDirty(worldSection, updateFlags, neighbors);
-                if ((updateFlags & UPDATE_TYPE_DONT_SAVE) == 0) {
-                    into.saveSection(worldSection, false, true);
-                }
+                into.markDirty(worldSection, (didStateChange?UPDATE_TYPE_BLOCK_BIT:0)|(emptinessStateChange!=0?UPDATE_TYPE_CHILD_EXISTENCE_BIT:0), neighbors);
             }
 
             //Need to release the section after using it
@@ -106,9 +102,9 @@ public class WorldUpdater {
         int airCount = 0;
         boolean didStateChange = false;
 
-
-        //TODO: remove the nonAirCountDelta stuff if level != 0
-
+        // airCount is only populated by the lvl == 0 branch below; higher LOD
+        // levels skip it because insertUpdate's nonAirCountDelta path is gated on
+        // lvl == 0 and would never read the value.
         {//Do a bunch of funny math
             var secD = worldSection.data;
             int baseSec = bx | (bz << 5) | (by << 10);
@@ -144,14 +140,49 @@ public class WorldUpdater {
                 int iSecMsk1 = (~secMsk) + 1;
 
                 int secIdx = 0;
-                //TODO: manually unroll and do e.g. 4 iterations per loop
-                for (int i = baseVIdx; i <= (0xFFF >> (lvl * 3)) + baseVIdx; i++) {
+                int end = (0xFFF >> (lvl * 3)) + baseVIdx;
+                int i = baseVIdx;
+
+                // Unrolled by 4: hides the latency of repeated array writes since
+                // the four target indices are computed up front, freeing the
+                // pipeline to issue all four loads/stores back-to-back. The
+                // secIdx advancement still has to be serialised because each
+                // step depends on the previous one's value.
+                //
+                // Iteration counts per LOD:
+                //   lvl=1  -> 512  (divisible by 4)
+                //   lvl=2  -> 64   (divisible by 4)
+                //   lvl=3  -> 8    (divisible by 4)
+                //   lvl=4  -> 1    (handled by the trailing serial loop)
+                int unrollEnd = end - 3;
+                while (i <= unrollEnd) {
+                    int c0 = secIdx + baseSec; secIdx = (secIdx + iSecMsk1) & secMsk;
+                    int c1 = secIdx + baseSec; secIdx = (secIdx + iSecMsk1) & secMsk;
+                    int c2 = secIdx + baseSec; secIdx = (secIdx + iSecMsk1) & secMsk;
+                    int c3 = secIdx + baseSec; secIdx = (secIdx + iSecMsk1) & secMsk;
+
+                    long n0 = vdat[i    ]; long o0 = secD[c0]; secD[c0] = n0;
+                    long n1 = vdat[i + 1]; long o1 = secD[c1]; secD[c1] = n1;
+                    long n2 = vdat[i + 2]; long o2 = secD[c2]; secD[c2] = n2;
+                    long n3 = vdat[i + 3]; long o3 = secD[c3]; secD[c3] = n3;
+
+                    // Bitwise-or of the four comparisons keeps the chain
+                    // branch-free; the JIT pulls didStateChange out into a
+                    // register for the duration of the loop.
+                    didStateChange |= (n0 != o0) | (n1 != o1) | (n2 != o2) | (n3 != o3);
+                    i += 4;
+                }
+
+                // Trailing serial cleanup for level 4 (1 iteration) and any
+                // future LOD count that isn't a multiple of 4.
+                while (i <= end) {
                     int cSecIdx = secIdx + baseSec;
                     secIdx = (secIdx + iSecMsk1) & secMsk;
                     long newId = vdat[i];
                     long oldId = secD[cSecIdx];
                     didStateChange |= newId != oldId;
                     secD[cSecIdx] = newId;
+                    i++;
                 }
             }
         }

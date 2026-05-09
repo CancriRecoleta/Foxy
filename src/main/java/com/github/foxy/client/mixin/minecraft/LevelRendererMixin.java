@@ -2,15 +2,22 @@ package com.github.foxy.client.mixin.minecraft;
 
 import com.github.foxy.client.config.FoxyConfig;
 import com.github.foxy.client.FoxyClient;
+import com.github.foxy.client.compat.FogParameters;
 import com.github.foxy.client.core.FoxyRenderSystem;
 import com.github.foxy.client.core.IGetFoxyRenderSystem;
 import com.github.foxy.client.core.util.IrisUtil;
 import com.github.foxy.common.Logger;
 import com.github.foxy.commonImpl.FoxyCommon;
 import com.github.foxy.commonImpl.WorldIdentifier;
+import com.mojang.blaze3d.vertex.PoseStack;
+import me.jellysquid.mods.sodium.client.render.chunk.ChunkRenderMatrices;
+import net.minecraft.client.Camera;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.LightTexture;
 import org.jetbrains.annotations.Nullable;
+import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -49,6 +56,25 @@ public abstract class LevelRendererMixin implements IGetFoxyRenderSystem {
     @Inject(method = "close", at = @At("HEAD"))
     private void foxy$close(CallbackInfo ci) {
         this.Foxy$shutdownRenderer();
+    }
+
+    // Captures the per-frame projection / modelView / camera into IrisUtil so that
+    // IrisRenderingPipelineMixin.foxy$applyCapturedViewport can replay them onto the
+    // Foxy viewport during Oculus's beginLevelRendering. Upstream voxy does this from
+    // its own iris/MixinLevelRenderer (which uses 1.21 APIs that don't exist here);
+    // this 1.20.1 replacement hooks renderLevel HEAD instead.
+    @Inject(method = "renderLevel", at = @At("HEAD"))
+    private void foxy$captureIrisViewport(PoseStack poseStack, float partialTick, long finishNanoTime,
+                                          boolean renderBlockOutline, Camera camera, GameRenderer gameRenderer,
+                                          LightTexture lightTexture, Matrix4f projection, CallbackInfo ci) {
+        if (!IrisUtil.irisShaderPackEnabled()) return;
+        if (this.foxy$renderer == null) return;
+        var pos = camera.getPosition();
+        var modelView = new Matrix4f(poseStack.last().pose());
+        IrisUtil.CAPTURED_VIEWPORT_PARAMETERS = new IrisUtil.CapturedViewportParameters(
+                new ChunkRenderMatrices(new Matrix4f(projection), modelView),
+                FogParameters.NONE,
+                pos.x, pos.y, pos.z);
     }
 
     @Override

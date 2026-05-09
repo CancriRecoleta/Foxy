@@ -20,7 +20,7 @@ public class FoxyConfig {
     private static final Gson GSON = new GsonBuilder()
             .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
             .setPrettyPrinting()
-            .excludeFieldsWithModifiers(Modifier.PRIVATE)
+            .excludeFieldsWithModifiers(Modifier.PRIVATE, Modifier.STATIC)
             .create();
 
     public static FoxyConfig CONFIG = loadOrCreate();
@@ -30,6 +30,15 @@ public class FoxyConfig {
     public boolean ingestEnabled = true;
     public boolean autoBackfillSingleplayer = true;
     public float sectionRenderDistance = 16;
+    /**
+     * Diagnostic toggle: when {@code true}, suppresses Embeddium's vanilla chunk
+     * rendering so only Foxy LOD remains on screen. Used to confirm whether the
+     * far-distance LOD output exists at all (visible past vanilla VD => render
+     * pipeline OK, the issue is depth/stencil masking; still nothing => data
+     * or traversal bug). Not intended for normal play &mdash; the chunk
+     * renderer also drives entity/particle culling and lighting context.
+     */
+    public boolean debugDisableVanillaTerrain = false;
     public int serviceThreads = (int) Math.max(CpuLayout.getCoreCount()/1.5, 1);
     public float subDivisionSize = 64;
     public boolean useEnvironmentalFog = true;
@@ -48,6 +57,28 @@ public class FoxyConfig {
     }
 
 
+    /** Hard upper bound for sectionRenderDistance, matching the slider's max
+     *  and the capacity that {@link com.github.foxy.client.core.rendering.hierachical.HierarchicalOcclusionTraverser#MAX_QUEUE_SIZE}
+     *  was sized for. Loading a stale config that exceeded this value would
+     *  immediately crash the render thread on world join when the TLN buffer
+     *  overflowed. */
+    public static final float SECTION_RENDER_DISTANCE_MAX = 64f;
+
+    private void clampLoaded() {
+        // Defensive clamp: legacy configs (or hand-edited ones) that store a
+        // sectionRenderDistance above the renderer's hard capacity are silently
+        // brought back into range. Without this an out-of-range value crashes
+        // HierarchicalOcclusionTraverser.addTLN as soon as the player joins.
+        if (this.sectionRenderDistance > SECTION_RENDER_DISTANCE_MAX) {
+            Logger.warn("Foxy: sectionRenderDistance " + this.sectionRenderDistance
+                    + " exceeds max " + SECTION_RENDER_DISTANCE_MAX + "; clamping");
+            this.sectionRenderDistance = SECTION_RENDER_DISTANCE_MAX;
+        }
+        if (this.sectionRenderDistance < 2f) {
+            this.sectionRenderDistance = 2f;
+        }
+    }
+
     private static FoxyConfig loadOrCreate() {
         if (FoxyCommon.isAvailable()) {
             var path = getConfigPath();
@@ -55,6 +86,7 @@ public class FoxyConfig {
                 try (FileReader reader = new FileReader(path.toFile())) {
                     var conf = GSON.fromJson(reader, FoxyConfig.class);
                     if (conf != null) {
+                        conf.clampLoaded();
                         conf.save();
                         return conf;
                     } else {

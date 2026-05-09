@@ -36,17 +36,35 @@ public class ImportManager {
 
     private final Map<WorldEngine, Task> activeImports = new ConcurrentHashMap<>();
 
-    /** Subscriber hook for progress events; client UIs / loggers / taskbars attach here. */
-    @FunctionalInterface
+    /**
+     * Subscriber hook for import lifecycle events; client UIs, loggers and
+     * taskbar widgets attach here. {@code onProgress} is called on the
+     * importer's worker thread (already throttled by {@link #PROGRESS_THROTTLE_MILLIS}),
+     * {@code onCompleted} fires once when the importer signals it's done.
+     */
     public interface IUpdateBroadcaster {
         void onProgress(WorldEngine engine, int finished, int outOf);
+        /**
+         * Fired exactly once per import after the LOD pyramid rebuild has been
+         * enqueued. {@code mipParentsQueued} is the number of LOD-1 parents
+         * pushed to the {@link com.github.foxy.common.world.service.MipService}
+         * &mdash; useful for telling the user how much follow-up work is in
+         * flight.
+         */
+        default void onCompleted(WorldEngine engine, int chunksImported, int mipParentsQueued) {}
     }
 
-    private volatile IUpdateBroadcaster broadcaster = (e, f, o) -> {};
+    private volatile IUpdateBroadcaster broadcaster = new IUpdateBroadcaster() {
+        @Override public void onProgress(WorldEngine e, int f, int o) {}
+    };
 
     /** Registers a progress subscriber; the latest call wins. */
     public void setBroadcaster(IUpdateBroadcaster broadcaster) {
-        this.broadcaster = broadcaster == null ? (e, f, o) -> {} : broadcaster;
+        this.broadcaster = broadcaster == null
+                ? new IUpdateBroadcaster() {
+                    @Override public void onProgress(WorldEngine e, int f, int o) {}
+                }
+                : broadcaster;
     }
 
     /** One in-flight import. */
@@ -83,9 +101,15 @@ public class ImportManager {
         protected void onCompleted(int chunks) {
             var engine = this.importer.getEngine();
             var instance = engine.instanceIn;
+            int enqueued = 0;
             if (instance != null && chunks > 0) {
-                int enqueued = instance.getOrCreateMipService(engine).mipAll();
+                enqueued = instance.getOrCreateMipService(engine).mipAll();
                 Logger.info("Foxy import completed: " + chunks + " chunks imported, " + enqueued + " LOD parents queued for mipping");
+            }
+            try {
+                ImportManager.this.broadcaster.onCompleted(engine, chunks, enqueued);
+            } catch (Throwable t) {
+                Logger.error("Import broadcaster onCompleted threw", t);
             }
             ImportManager.this.jobFinished(this);
         }
