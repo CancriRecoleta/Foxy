@@ -1,0 +1,16 @@
+//
+// Source code recreated from a .class file by IntelliJ IDEA
+// (powered by FernFlower decompiler)
+//
+
+package net.minecraft.network.chat.contents;
+
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import java.util.stream.Stream;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.nbt.CompoundTag;
+
+@FunctionalInterface
+public interface DataSource {
+    Stream<CompoundTag> getData(CommandSourceStack var1) throws CommandSyntaxException;
+}

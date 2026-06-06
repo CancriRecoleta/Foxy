@@ -48,9 +48,6 @@ void main() {
     if (colour.a == 0.0) {
         discard;
     }
-    // The LOD terrain pass stores renderer metadata in the alpha channel, so
-    // the final compose pass must not treat it as visual opacity.
-    colour.a = 1.0;
     #ifdef USE_ENV_FOG
     if (fogColour.a>0.0){
         float fogLerp = clamp(fma(length(point.xyz),endParams.x,endParams.y),0,endParams.z);//512 is 32*16 which is the render distance in blocks

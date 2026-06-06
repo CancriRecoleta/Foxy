@@ -1,0 +1,42 @@
+//
+// Source code recreated from a .class file by IntelliJ IDEA
+// (powered by FernFlower decompiler)
+//
+
+package net.minecraft.world.level.levelgen.placement;
+
+import com.mojang.serialization.Codec;
+import java.util.stream.Stream;
+import net.minecraft.core.BlockPos;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.levelgen.GenerationStep;
+import net.minecraft.world.level.levelgen.GenerationStep.Carving;
+
+public class CarvingMaskPlacement extends PlacementModifier {
+    public static final Codec<CarvingMaskPlacement> CODEC;
+    private final GenerationStep.Carving step;
+
+    private CarvingMaskPlacement(GenerationStep.Carving p_191589_) {
+        this.step = p_191589_;
+    }
+
+    public static CarvingMaskPlacement forStep(GenerationStep.Carving p_191591_) {
+        return new CarvingMaskPlacement(p_191591_);
+    }
+
+    public Stream<BlockPos> getPositions(PlacementContext p_226325_, RandomSource p_226326_, BlockPos p_226327_) {
+        ChunkPos $$3 = new ChunkPos(p_226327_);
+        return p_226325_.getCarvingMask($$3, this.step).stream($$3);
+    }
+
+    public PlacementModifierType<?> type() {
+        return PlacementModifierType.CARVING_MASK_PLACEMENT;
+    }
+
+    static {
+        CODEC = Carving.CODEC.fieldOf("step").xmap(CarvingMaskPlacement::new, (p_191593_) -> {
+            return p_191593_.step;
+        }).codec();
+    }
+}

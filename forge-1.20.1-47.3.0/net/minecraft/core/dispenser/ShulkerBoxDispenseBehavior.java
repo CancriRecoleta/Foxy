@@ -1,0 +1,43 @@
+//
+// Source code recreated from a .class file by IntelliJ IDEA
+// (powered by FernFlower decompiler)
+//
+
+package net.minecraft.core.dispenser;
+
+import com.mojang.logging.LogUtils;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.BlockSource;
+import net.minecraft.core.Direction;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.DirectionalPlaceContext;
+import net.minecraft.world.level.block.DispenserBlock;
+import org.slf4j.Logger;
+
+public class ShulkerBoxDispenseBehavior extends OptionalDispenseItemBehavior {
+    private static final Logger LOGGER = LogUtils.getLogger();
+
+    public ShulkerBoxDispenseBehavior() {
+    }
+
+    protected ItemStack execute(BlockSource p_123587_, ItemStack p_123588_) {
+        this.setSuccess(false);
+        Item $$2 = p_123588_.getItem();
+        if ($$2 instanceof BlockItem) {
+            Direction $$3 = (Direction)p_123587_.getBlockState().getValue(DispenserBlock.FACING);
+            BlockPos $$4 = p_123587_.getPos().relative($$3);
+            Direction $$5 = p_123587_.getLevel().isEmptyBlock($$4.below()) ? $$3 : Direction.UP;
+
+            try {
+                this.setSuccess(((BlockItem)$$2).place(new DirectionalPlaceContext(p_123587_.getLevel(), $$4, $$3, p_123588_, $$5)).consumesAction());
+            } catch (Exception var8) {
+                Exception $$6 = var8;
+                LOGGER.error("Error trying to place shulker box at {}", $$4, $$6);
+            }
+        }
+
+        return p_123588_;
+    }
+}

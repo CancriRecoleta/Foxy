@@ -1,0 +1,94 @@
+//
+// Source code recreated from a .class file by IntelliJ IDEA
+// (powered by FernFlower decompiler)
+//
+
+package net.minecraft.world.level.levelgen.feature;
+
+import com.google.common.collect.ImmutableList;
+import com.mojang.serialization.Codec;
+import java.util.Iterator;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.levelgen.feature.configurations.DeltaFeatureConfiguration;
+
+public class DeltaFeature extends Feature<DeltaFeatureConfiguration> {
+    private static final ImmutableList<Block> CANNOT_REPLACE;
+    private static final Direction[] DIRECTIONS;
+    private static final double RIM_SPAWN_CHANCE = 0.9;
+
+    public DeltaFeature(Codec<DeltaFeatureConfiguration> p_65550_) {
+        super(p_65550_);
+    }
+
+    public boolean place(FeaturePlaceContext<DeltaFeatureConfiguration> p_159548_) {
+        boolean $$1 = false;
+        RandomSource $$2 = p_159548_.random();
+        WorldGenLevel $$3 = p_159548_.level();
+        DeltaFeatureConfiguration $$4 = (DeltaFeatureConfiguration)p_159548_.config();
+        BlockPos $$5 = p_159548_.origin();
+        boolean $$6 = $$2.nextDouble() < 0.9;
+        int $$7 = $$6 ? $$4.rimSize().sample($$2) : 0;
+        int $$8 = $$6 ? $$4.rimSize().sample($$2) : 0;
+        boolean $$9 = $$6 && $$7 != 0 && $$8 != 0;
+        int $$10 = $$4.size().sample($$2);
+        int $$11 = $$4.size().sample($$2);
+        int $$12 = Math.max($$10, $$11);
+        Iterator var14 = BlockPos.withinManhattan($$5, $$10, 0, $$11).iterator();
+
+        while(var14.hasNext()) {
+            BlockPos $$13 = (BlockPos)var14.next();
+            if ($$13.distManhattan($$5) > $$12) {
+                break;
+            }
+
+            if (isClear($$3, $$13, $$4)) {
+                if ($$9) {
+                    $$1 = true;
+                    this.setBlock($$3, $$13, $$4.rim());
+                }
+
+                BlockPos $$14 = $$13.offset($$7, 0, $$8);
+                if (isClear($$3, $$14, $$4)) {
+                    $$1 = true;
+                    this.setBlock($$3, $$14, $$4.contents());
+                }
+            }
+        }
+
+        return $$1;
+    }
+
+    private static boolean isClear(LevelAccessor p_65552_, BlockPos p_65553_, DeltaFeatureConfiguration p_65554_) {
+        BlockState $$3 = p_65552_.getBlockState(p_65553_);
+        if ($$3.is(p_65554_.contents().getBlock())) {
+            return false;
+        } else if (CANNOT_REPLACE.contains($$3.getBlock())) {
+            return false;
+        } else {
+            Direction[] var4 = DIRECTIONS;
+            int var5 = var4.length;
+
+            for(int var6 = 0; var6 < var5; ++var6) {
+                Direction $$4 = var4[var6];
+                boolean $$5 = p_65552_.getBlockState(p_65553_.relative($$4)).isAir();
+                if ($$5 && $$4 != Direction.UP || !$$5 && $$4 == Direction.UP) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+    }
+
+    static {
+        CANNOT_REPLACE = ImmutableList.of(Blocks.BEDROCK, Blocks.NETHER_BRICKS, Blocks.NETHER_BRICK_FENCE, Blocks.NETHER_BRICK_STAIRS, Blocks.NETHER_WART, Blocks.CHEST, Blocks.SPAWNER);
+        DIRECTIONS = Direction.values();
+    }
+}

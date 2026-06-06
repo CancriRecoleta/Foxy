@@ -1,0 +1,18 @@
+//
+// Source code recreated from a .class file by IntelliJ IDEA
+// (powered by FernFlower decompiler)
+//
+
+package net.minecraft.world.entity.ai.behavior;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.Vec3;
+
+public interface PositionTracker {
+    Vec3 currentPosition();
+
+    BlockPos currentBlockPosition();
+
+    boolean isVisibleBy(LivingEntity var1);
+}

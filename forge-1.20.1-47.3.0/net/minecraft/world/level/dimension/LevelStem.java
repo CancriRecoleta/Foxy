@@ -1,0 +1,42 @@
+//
+// Source code recreated from a .class file by IntelliJ IDEA
+// (powered by FernFlower decompiler)
+//
+
+package net.minecraft.world.level.dimension;
+
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.core.Holder;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.chunk.ChunkGenerator;
+
+public record LevelStem(Holder<DimensionType> type, ChunkGenerator generator) {
+    public static final Codec<LevelStem> CODEC = RecordCodecBuilder.create((p_63986_) -> {
+        return p_63986_.group(DimensionType.CODEC.fieldOf("type").forGetter(LevelStem::type), ChunkGenerator.CODEC.fieldOf("generator").forGetter(LevelStem::generator)).apply(p_63986_, p_63986_.stable(LevelStem::new));
+    });
+    public static final ResourceKey<LevelStem> OVERWORLD;
+    public static final ResourceKey<LevelStem> NETHER;
+    public static final ResourceKey<LevelStem> END;
+
+    public LevelStem(Holder<DimensionType> type, ChunkGenerator generator) {
+        this.type = type;
+        this.generator = generator;
+    }
+
+    public Holder<DimensionType> type() {
+        return this.type;
+    }
+
+    public ChunkGenerator generator() {
+        return this.generator;
+    }
+
+    static {
+        OVERWORLD = ResourceKey.create(Registries.LEVEL_STEM, new ResourceLocation("overworld"));
+        NETHER = ResourceKey.create(Registries.LEVEL_STEM, new ResourceLocation("the_nether"));
+        END = ResourceKey.create(Registries.LEVEL_STEM, new ResourceLocation("the_end"));
+    }
+}

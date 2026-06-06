@@ -1,0 +1,42 @@
+//
+// Source code recreated from a .class file by IntelliJ IDEA
+// (powered by FernFlower decompiler)
+//
+
+package net.minecraft.client.gui.screens.inventory;
+
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ServerboundSetCommandMinecartPacket;
+import net.minecraft.world.entity.vehicle.MinecartCommandBlock;
+import net.minecraft.world.level.BaseCommandBlock;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
+
+@OnlyIn(Dist.CLIENT)
+public class MinecartCommandBlockEditScreen extends AbstractCommandBlockEditScreen {
+    private final BaseCommandBlock commandBlock;
+
+    public MinecartCommandBlockEditScreen(BaseCommandBlock p_99216_) {
+        this.commandBlock = p_99216_;
+    }
+
+    public BaseCommandBlock getCommandBlock() {
+        return this.commandBlock;
+    }
+
+    int getPreviousY() {
+        return 150;
+    }
+
+    protected void init() {
+        super.init();
+        this.commandEdit.setValue(this.getCommandBlock().getCommand());
+    }
+
+    protected void populateAndSendPacket(BaseCommandBlock p_99218_) {
+        if (p_99218_ instanceof MinecartCommandBlock.MinecartCommandBase $$1) {
+            this.minecraft.getConnection().send((Packet)(new ServerboundSetCommandMinecartPacket($$1.getMinecart().getId(), this.commandEdit.getValue(), p_99218_.isTrackOutput())));
+        }
+
+    }
+}

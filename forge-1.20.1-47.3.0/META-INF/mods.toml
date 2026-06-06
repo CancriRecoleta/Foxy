@@ -1,0 +1,17 @@
+modLoader="javafml"
+loaderVersion="[24,]"
+issueTrackerURL="https:
+logoFile="forge_logo.png"
+license="LGPL v2.1"
+
+[[mods]]
+    modId="forge"
+    version="${global.forgeVersion}"
+    updateJSONURL="https:
+    displayURL="https:
+    displayName="Forge"
+    credits="Anyone who has contributed on Github and supports our development"
+    authors="LexManos,cpw"
+    description='''
+    Forge, a broad compatibility API.
+    '''
