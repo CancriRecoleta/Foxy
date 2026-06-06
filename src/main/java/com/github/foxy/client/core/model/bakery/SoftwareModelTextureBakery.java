@@ -1,17 +1,13 @@
 package com.github.foxy.client.core.model.bakery;
+import com.github.foxy.client.core.model.FoxyRenderLayer;
 
-import com.mojang.blaze3d.buffers.GpuBuffer;
-import com.mojang.blaze3d.opengl.GlTexture;
 import com.mojang.blaze3d.platform.NativeImage;
-import com.mojang.blaze3d.systems.CommandEncoder;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.TextureFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.github.foxy.client.core.model.ModelFactory;
 import com.github.foxy.common.util.UnsafeUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
-import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
@@ -38,6 +34,7 @@ import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.lwjgl.opengl.ARBDirectStateAccess.glGetTextureImage;
+import static org.lwjgl.opengl.ARBDirectStateAccess.glGetTextureLevelParameteri;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL11.GL_UNPACK_ALIGNMENT;
 import static org.lwjgl.opengl.GL11C.GL_RGBA;
@@ -58,15 +55,16 @@ public class SoftwareModelTextureBakery {
     }
 
     public void setupTexture() {
-        var tex = Minecraft.getInstance().getTextureManager().getTexture(Identifier.fromNamespaceAndPath("minecraft", "textures/atlas/blocks.png")).getTexture();
-        if (tex.getFormat() != TextureFormat.RGBA8) {
-            throw new IllegalStateException("Block atlas not rgba8");
-        }
+        // 1.20.1 has no GpuTexture wrapper: getTexture(loc) returns the AbstractTexture directly,
+        // whose getId() is the GL texture name. The block atlas is always RGBA8 here, and its
+        // dimensions are queried straight from GL via DSA rather than the 1.21 GpuTexture accessors.
+        var tex = Minecraft.getInstance().getTextureManager().getTexture(new ResourceLocation("minecraft", "textures/atlas/blocks.png"));
+        int texId = tex.getId();
 
         int targetMipLevel = 0;// Math.min(tex.getMipLevels(), 4)-1;//todo: we want to target the mip layer that has the 16x16 sized textures
 
-        int width = tex.getWidth(targetMipLevel);
-        int height = tex.getHeight(targetMipLevel);
+        int width = glGetTextureLevelParameteri(texId, targetMipLevel, GL_TEXTURE_WIDTH);
+        int height = glGetTextureLevelParameteri(texId, targetMipLevel, GL_TEXTURE_HEIGHT);
 
         //Just do it ourselves as doing it with b3d has some issues, (doing it ourselves is also just much much much shorter)
         var texture = new int[width * height];
@@ -80,21 +78,21 @@ public class SoftwareModelTextureBakery {
         glPixelStorei(GL_PACK_SKIP_ROWS, 0);
         glPixelStorei(GL_PACK_SKIP_PIXELS, 0);
         glPixelStorei(GL_PACK_ALIGNMENT, 4);
-        glGetTextureImage(((GlTexture) tex).glId(), 0, GL_RGBA, GL_UNSIGNED_BYTE, texture);
+        glGetTextureImage(texId, 0, GL_RGBA, GL_UNSIGNED_BYTE, texture);
         this.rasterizer.setSamplerTexture(texture, width, height);
     }
 
-    public static int getMetaFromLayer(ChunkSectionLayer layer) {
-        boolean hasDiscard = layer == ChunkSectionLayer.CUTOUT ||
-                layer == ChunkSectionLayer.TRANSLUCENT||
-                layer == ChunkSectionLayer.TRIPWIRE;
+    public static int getMetaFromLayer(FoxyRenderLayer layer) {
+        boolean hasDiscard = layer == FoxyRenderLayer.CUTOUT ||
+                layer == FoxyRenderLayer.TRANSLUCENT||
+                layer == FoxyRenderLayer.TRIPWIRE;
 
         int meta = hasDiscard?1:0;
         meta |= true?2:0;
         return meta;
     }
 
-    private void bakeBlockModel(BlockState state, ChunkSectionLayer layer) {
+    private void bakeBlockModel(BlockState state, FoxyRenderLayer layer) {
         if (state.getRenderShape() == RenderShape.INVISIBLE) {
             return;//Dont bake if invisible
         }
@@ -116,7 +114,7 @@ public class SoftwareModelTextureBakery {
     }
 
 
-    private void bakeFluidState(BlockState state, ChunkSectionLayer layer, int face) {
+    private void bakeFluidState(BlockState state, FoxyRenderLayer layer, int face) {
         {
             //TODO: somehow set the tint flag per quad or something?
             int metadata = getMetaFromLayer(layer);
@@ -211,15 +209,15 @@ public class SoftwareModelTextureBakery {
 
 
         boolean isBlock = true;
-        ChunkSectionLayer layer;
+        FoxyRenderLayer layer;
         if (state.getBlock() instanceof LiquidBlock) {
-            layer = ItemBlockRenderTypes.getRenderLayer(state.getFluidState());
+            layer = FoxyRenderLayer.fromRenderType(ItemBlockRenderTypes.getRenderLayer(state.getFluidState()));
             isBlock = false;
         } else {
             if (state.getBlock() instanceof LeavesBlock) {
-                layer = ChunkSectionLayer.SOLID;
+                layer = FoxyRenderLayer.SOLID;
             } else {
-                layer = ItemBlockRenderTypes.getChunkRenderType(state);
+                layer = FoxyRenderLayer.fromRenderType(ItemBlockRenderTypes.getChunkRenderType(state));
             }
         }
 
@@ -230,7 +228,7 @@ public class SoftwareModelTextureBakery {
         }
 
         {
-            this.rasterizer.setBlending(layer == ChunkSectionLayer.TRANSLUCENT);
+            this.rasterizer.setBlending(layer == FoxyRenderLayer.TRANSLUCENT);
 
             //var tex = Minecraft.getInstance().getTextureManager().getTexture(Identifier.fromNamespaceAndPath("minecraft", "textures/atlas/blocks.png")).getTexture();
             //blockTextureId = ((com.mojang.blaze3d.opengl.GlTexture)tex).glId();

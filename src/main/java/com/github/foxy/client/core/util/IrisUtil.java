@@ -4,7 +4,7 @@ import com.github.foxy.client.core.VoxyRenderSystem;
 import com.github.foxy.client.core.rendering.Viewport;
 import me.jellysquid.mods.sodium.client.render.chunk.ChunkRenderMatrices;
 import com.github.foxy.client.core.util.FogParameters;
-import net.fabricmc.loader.api.FabricLoader;
+import net.minecraftforge.fml.ModList;
 import net.irisshaders.iris.Iris;
 import net.irisshaders.iris.api.v0.IrisApi;
 import net.irisshaders.iris.gl.IrisRenderSystem;
@@ -22,7 +22,7 @@ public class IrisUtil {
 
     public static CapturedViewportParameters CAPTURED_VIEWPORT_PARAMETERS;
 
-    public static final boolean IRIS_INSTALLED = FabricLoader.getInstance().isModLoaded("iris");
+    public static final boolean IRIS_INSTALLED = ModList.get().isLoaded("oculus");
     public static final boolean SHADER_SUPPORT = true;//System.getProperty("voxy.enableExperimentalIrisPipeline", "false").equalsIgnoreCase("true");
 
 

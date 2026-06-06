@@ -4,7 +4,6 @@ package com.github.foxy.client.core.model.bakery;
 import com.github.foxy.common.util.MemoryBuffer;
 import net.minecraft.client.model.geom.builders.UVPair;
 import net.minecraft.client.renderer.block.model.BakedQuad;
-import net.minecraft.client.renderer.texture.MipmapStrategy;
 import org.lwjgl.system.MemoryUtil;
 
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -83,7 +82,7 @@ public final class ReuseVertexConsumer implements VertexConsumer {
 
     public ReuseVertexConsumer quad(BakedQuad quad, int metadata) {
         this.anyShaded |= quad.shade();
-        this.anyDarkendTex |= quad.sprite().contents().mipmapStrategy == MipmapStrategy.DARK_CUTOUT;
+        this.anyDarkendTex |= false;
         this.ensureCanPut();
         for (int i = 0; i < 4; i++) {
             var pos = quad.position(i);

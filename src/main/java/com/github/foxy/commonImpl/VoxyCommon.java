@@ -28,6 +28,10 @@ public class VoxyCommon {
         }
     }
 
+    // Forces this class to load, running the static initializer above (mod version + config
+    // serialization setup). Called from the @Mod entrypoint during construction.
+    public static void bootstrap() {}
+
     //This is hardcoded like this because people do not understand what they are doing
     public static boolean isVerificationFlagOn(String name) {
         return isVerificationFlagOn(name, false);

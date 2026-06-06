@@ -1,17 +1,15 @@
 package com.github.foxy.client.core.rendering;
 
 import com.github.foxy.client.core.util.IrisUtil;
-import net.fabricmc.loader.api.FabricLoader;
-import org.vivecraft.api.client.VRRenderingAPI;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 
-import static org.vivecraft.api.client.data.RenderPass.VANILLA;
-
 public class ViewportSelector <T extends Viewport<?>> {
-    public static final boolean VIVECRAFT_INSTALLED = FabricLoader.getInstance().isModLoaded("vivecraft");
+    // Vivecraft's VR render-pass API is Fabric-only and not a declared Forge 1.20.1 dependency,
+    // so VR viewport selection is disabled here; only the default and iris-shadow viewports remain.
+    public static final boolean VIVECRAFT_INSTALLED = false;
 
     private final Supplier<T> creator;
     private final T defaultViewport;
@@ -26,20 +24,9 @@ public class ViewportSelector <T extends Viewport<?>> {
         return this.extraViewports.computeIfAbsent(holder, a->this.creator.get());
     }
 
-    private T getVivecraftViewport() {
-        var pass = VRRenderingAPI.instance().getCurrentRenderPass();
-        if (pass == null || pass == VANILLA) {
-            return null;
-        }
-        return this.getOrCreate(pass);
-    }
-
     private static final Object IRIS_SHADOW_OBJECT = new Object();
     public T getViewport() {
         T viewport = null;
-        if (viewport == null && VIVECRAFT_INSTALLED) {
-            viewport = getVivecraftViewport();
-        }
 
         if (viewport == null && IrisUtil.irisShadowActive()) {
             viewport = this.getOrCreate(IRIS_SHADOW_OBJECT);

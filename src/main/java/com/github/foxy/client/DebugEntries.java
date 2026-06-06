@@ -2,66 +2,39 @@ package com.github.foxy.client;
 
 import com.github.foxy.client.core.IGetVoxyRenderSystem;
 import com.github.foxy.client.core.VoxyRenderSystem;
-import com.github.foxy.client.core.util.GPUTiming;
 import com.github.foxy.commonImpl.VoxyCommon;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.components.debug.DebugScreenDisplayer;
-import net.minecraft.client.gui.components.debug.DebugScreenEntries;
-import net.minecraft.client.gui.components.debug.DebugScreenEntry;
-import net.minecraft.client.gui.components.debug.DebugScreenEntryStatus;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.chunk.LevelChunk;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
-import java.util.Map;
 
+// 1.20.1 has no pluggable DebugScreenEntries API (that is a 1.21 feature). Foxy's F3 lines are
+// produced here and injected into the vanilla F3 overlay by a DebugScreenOverlay mixin instead.
 public class DebugEntries {
-    public static final Identifier GPU_DEBUG = Identifier.fromNamespaceAndPath("voxy", "gpu_debug");
     public static void init() {
-        DebugScreenEntries.register(Identifier.fromNamespaceAndPath("voxy", "version"), new DebugScreenEntry() {
-            @Override
-            public void display(DebugScreenDisplayer lines, @Nullable Level level, @Nullable LevelChunk levelChunk, @Nullable LevelChunk levelChunk2) {
-                if (!VoxyCommon.isAvailable()) {
-                    lines.addLine(ChatFormatting.RED + "voxy-"+VoxyCommon.MOD_VERSION);//Voxy installed, not avalible
-                    return;
-                }
-                var instance = VoxyCommon.getInstance();
-                if (instance == null) {
-                    lines.addLine(ChatFormatting.YELLOW + "voxy-" + VoxyCommon.MOD_VERSION);//Voxy avalible, no instance active
-                    return;
-                }
-                VoxyRenderSystem vrs = null;
-                var wr = Minecraft.getInstance().levelRenderer;
-                if (wr != null) vrs = ((IGetVoxyRenderSystem) wr).voxy$getRenderSystem();
-
-                //Voxy instance active
-                lines.addLine((vrs==null?ChatFormatting.DARK_GREEN:ChatFormatting.GREEN)+"voxy-"+VoxyCommon.MOD_VERSION);
-            }
-        });
-
-        DebugScreenEntries.register(Identifier.fromNamespaceAndPath("voxy","debug"), new VoxyDebugScreenEntry());
-
-        DebugScreenEntries.register(GPU_DEBUG, new DebugScreenEntry() {
-            @Override
-            public void display(DebugScreenDisplayer debugScreenDisplayer, @Nullable Level level, @Nullable LevelChunk levelChunk, @Nullable LevelChunk levelChunk2) {
-
-            }
-        });
+        // No-op on Forge 1.20.1: F3 lines are added via the debug-overlay mixin, not a registry.
     }
 
-    private static boolean previousGpuDebugEnabled = false;
-    public static void onRebuild(Map<Identifier, DebugScreenEntryStatus> allStatuses, List<Identifier> enabled) {
-        var entry = allStatuses.getOrDefault(GPU_DEBUG, DebugScreenEntryStatus.NEVER);
-        if ((entry!=DebugScreenEntryStatus.NEVER)!=previousGpuDebugEnabled) {
-            previousGpuDebugEnabled ^= true;
+    // Appends Foxy's diagnostic lines to the F3 overlay. Called from the DebugScreenOverlay mixin.
+    public static void appendDebugLines(List<String> lines) {
+        if (!VoxyCommon.isAvailable()) {
+            lines.add(ChatFormatting.RED + "foxy-" + VoxyCommon.MOD_VERSION);//Foxy installed, not available
+            return;
+        }
+        var instance = VoxyCommon.getInstance();
+        if (instance == null) {
+            lines.add(ChatFormatting.YELLOW + "foxy-" + VoxyCommon.MOD_VERSION);//Foxy available, no instance active
+            return;
+        }
 
-            GPUTiming.INSTANCE.setEnabled(previousGpuDebugEnabled);
-            RenderStatistics.enabled = previousGpuDebugEnabled;
-            var renderer = Minecraft.getInstance().levelRenderer;
-            if (renderer!=null)renderer.allChanged();
+        VoxyRenderSystem vrs = null;
+        var wr = Minecraft.getInstance().levelRenderer;
+        if (wr != null) vrs = ((IGetVoxyRenderSystem) wr).voxy$getRenderSystem();
+
+        lines.add((vrs == null ? ChatFormatting.DARK_GREEN : ChatFormatting.GREEN) + "foxy-" + VoxyCommon.MOD_VERSION);
+        instance.addDebug(lines);
+        if (vrs != null) {
+            vrs.addDebugInfo(lines);
         }
     }
 }

@@ -1,7 +1,6 @@
 package com.github.foxy.client.core;
 
-import com.mojang.blaze3d.opengl.GlConst;
-import com.mojang.blaze3d.opengl.GlStateManager;
+import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.github.foxy.client.TimingStatistics;
 import com.github.foxy.client.VoxyClient;
@@ -166,7 +165,7 @@ public class VoxyRenderSystem {
         }
 
         for (int i = 0; i < 12; i++) {
-            GlStateManager._activeTexture(GlConst.GL_TEXTURE0+i);
+            GlStateManager._activeTexture(org.lwjgl.opengl.GL13.GL_TEXTURE0+i);
             GlStateManager._bindTexture(0);
             glBindSampler(i, 0);
         }
@@ -299,7 +298,7 @@ public class VoxyRenderSystem {
 
         GPUTiming.INSTANCE.tick();
 
-        glBindFramebuffer(GlConst.GL_FRAMEBUFFER, oldFB);
+        glBindFramebuffer(org.lwjgl.opengl.GL30.GL_FRAMEBUFFER, oldFB);
         glViewport(dims[0], dims[1], dims[2], dims[3]);
 
         {//Reset state manager stuffs
@@ -309,9 +308,9 @@ public class VoxyRenderSystem {
 
             GlStateManager._glBindVertexArray(0);//Clear binding
 
-            GlStateManager._activeTexture(GlConst.GL_TEXTURE1);
+            GlStateManager._activeTexture(org.lwjgl.opengl.GL13.GL_TEXTURE1);
             for (int i = 0; i < 12; i++) {
-                GlStateManager._activeTexture(GlConst.GL_TEXTURE0+i);
+                GlStateManager._activeTexture(org.lwjgl.opengl.GL13.GL_TEXTURE0+i);
                 GlStateManager._bindTexture(0);
                 glBindSampler(i, 0);
             }
