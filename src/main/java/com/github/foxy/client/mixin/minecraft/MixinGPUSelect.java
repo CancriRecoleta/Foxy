@@ -8,7 +8,6 @@ import com.github.foxy.client.GPUSelectorWindows2;
 import com.github.foxy.common.util.ThreadUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.main.GameConfig;
-import net.minecraft.world.entity.vehicle.minecart.Minecart;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;

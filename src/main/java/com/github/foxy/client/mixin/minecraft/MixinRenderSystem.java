@@ -1,24 +1,21 @@
 package com.github.foxy.client.mixin.minecraft;
 
 
-import com.mojang.blaze3d.shaders.ShaderSource;
-import com.mojang.blaze3d.shaders.ShaderType;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.github.foxy.client.VoxyClient;
-import net.minecraft.resources.Identifier;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.util.function.BiFunction;
-
 //Thanks iris for making me need todo this ;-; _irritater_
 @Mixin(RenderSystem.class)
 public class MixinRenderSystem {
-    //We need to inject before iris to initalize our systems
-    @Inject(method = "initRenderer", order = 900, remap = false, at = @At("RETURN"))
-    private static void voxy$injectInit(long windowHandle, int debugVerbosity, boolean sync, ShaderSource source, boolean renderDebugLabels, CallbackInfo ci) {
+    // 1.20.1 RenderSystem.initRenderer is (int debugVerbosity, boolean synchronous) — none of the
+    // 1.21.5 ShaderSource/renderDebugLabels args. Mixin 0.8.5 (shipped with Forge 1.20.1) has no
+    // @Inject(order=...), so ordering relative to Oculus is left to mixin priority instead.
+    @Inject(method = "initRenderer(IZ)V", at = @At("RETURN"))
+    private static void voxy$injectInit(int debugVerbosity, boolean synchronous, CallbackInfo ci) {
         VoxyClient.initVoxyClient();
     }
 }

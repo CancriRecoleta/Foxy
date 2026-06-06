@@ -29,7 +29,7 @@ public abstract class MixinLevelRenderer implements IGetVoxyRenderSystem {
         return this.renderer;
     }
 
-    @Inject(method = "allChanged()V", at = @At("RETURN"), order = 900)//We want to inject before sodium
+    @Inject(method = "allChanged()V", at = @At("RETURN"))//Inject before sodium (ordering via mixin priority; Mixin 0.8.5 has no @Inject order)
     private void voxy$reloadVoxyRenderer(CallbackInfo ci) {
         this.voxy$shutdownRenderer();
         if (this.level != null) {
