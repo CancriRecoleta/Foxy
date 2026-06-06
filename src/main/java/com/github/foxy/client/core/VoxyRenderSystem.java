@@ -134,8 +134,8 @@ public class VoxyRenderSystem {
             this.viewportSelector = new ViewportSelector<>(sectionRenderer::createViewport);
 
             {
-                int minSec = Minecraft.getInstance().level.getMinSectionY() >> 5;
-                int maxSec = (Minecraft.getInstance().level.getMaxSectionY() - 1) >> 5;
+                int minSec = Minecraft.getInstance().level.getMinSection() >> 5;
+                int maxSec = (Minecraft.getInstance().level.getMaxSection() - 1) >> 5;
 
                 //Do some very cheeky stuff for MiB
                 if (VoxyCommon.IS_MINE_IN_ABYSS) {//TODO: make this somehow configurable
@@ -417,7 +417,7 @@ public class VoxyRenderSystem {
     private static float getGameFoV() {
         var client = Minecraft.getInstance();
         var gameRenderer = client.gameRenderer;
-        return gameRenderer.getFov(gameRenderer.getMainCamera(), client.getDeltaTracker().getGameTimeDeltaPartialTick(true), true);
+        return (float) gameRenderer.getFov(gameRenderer.getMainCamera(), client.getFrameTime(), true);
     }
 
     private static Matrix4f computeProjectionMat(RenderProperties properties, Matrix4fc base) {

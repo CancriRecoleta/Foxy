@@ -12,6 +12,8 @@ public class LightMapHelper {
     }
 
     public static int getLightmapTextureId() {
-        return ((com.mojang.blaze3d.opengl.GlTexture)(Minecraft.getInstance().gameRenderer.lightTexture().getTextureView().texture())).glId();
+        // 1.20.1: LightTexture holds a private DynamicTexture (exposed via AT); its getId() is the
+        // GL texture name (no 1.21 GpuTexture/getTextureView indirection).
+        return Minecraft.getInstance().gameRenderer.lightTexture().lightTexture.getId();
     }
 }

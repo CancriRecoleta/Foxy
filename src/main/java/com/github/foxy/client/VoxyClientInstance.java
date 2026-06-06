@@ -110,12 +110,12 @@ public class VoxyClientInstance extends VoxyInstance {
                 Logger.error("Network handle null");
                 basePath = basePath.resolve("UNKNOWN");
             } else {
-                var info = netHandle.connection.getServerData();
+                var info = net.minecraft.client.Minecraft.getInstance().getConnection().getServerData();
                 if (info == null) {
                     Logger.error("Server info null");
                     basePath = basePath.resolve("UNKNOWN");
                 } else {
-                    if (info.isRealm()) {
+                    if (net.minecraft.client.Minecraft.getInstance().isConnectedToRealms()) {
                         basePath = basePath.resolve("realms");
                     } else {
                         basePath = basePath.resolve(info.ip.replace(":", "_"));

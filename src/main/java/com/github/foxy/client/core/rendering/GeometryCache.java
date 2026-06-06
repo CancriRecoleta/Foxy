@@ -28,7 +28,7 @@ public class GeometryCache {
             this.currentSize -= prev.geometryBuffer.size;
         }
         while (this.maxCombinedSize <= this.currentSize) {
-            var entry = this.cache.removeFirst();
+            var entry = this.cache.remove(0);
             this.currentSize -= entry.geometryBuffer.size;
             entry.free();
         }

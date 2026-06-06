@@ -4,7 +4,9 @@
   "package": "com.github.foxy.commonImpl.mixin",
   "compatibilityLevel": "JAVA_17",
   "refmap": "foxy.refmap.json",
-  "mixins": [],
+  "mixins": [
+    "minecraft.MixinWorld"
+  ],
   "client": [],
   "injectors": {
     "defaultRequire": 1

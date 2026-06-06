@@ -6,7 +6,31 @@
   "refmap": "foxy.refmap.json",
   "mixins": [],
   "client": [
-
+    "iris.CustomUniformsAccessor",
+    "iris.IrisRenderingPipelineAccessor",
+    "iris.MixinIris",
+    "iris.MixinIrisRenderingPipeline",
+    "iris.MixinIrisSamplers",
+    "iris.MixinLevelRenderer",
+    "iris.MixinMatrixUniforms",
+    "iris.MixinProgramSet",
+    "iris.MixinShaderPackSourceNames",
+    "iris.MixinStandardMacros",
+    "minecraft.MixinBlockableEventLoop",
+    "minecraft.MixinClientChunkCache",
+    "minecraft.MixinClientLevel",
+    "minecraft.MixinClientPacketListener",
+    "minecraft.MixinGPUSelect",
+    "minecraft.MixinLevelRenderer",
+    "minecraft.MixinMinecraft",
+    "minecraft.MixinRenderSystem",
+    "sodium.AccessorChunkTracker",
+    "sodium.AccessorSodiumWorldRenderer",
+    "sodium.MixinChunkJobQueue",
+    "sodium.MixinDefaultChunkRenderer",
+    "sodium.MixinRenderRegionManager",
+    "sodium.MixinRenderSectionManager",
+    "sodium.MixinSodiumWorldRenderer"
   ],
   "injectors": {
     "defaultRequire": 1

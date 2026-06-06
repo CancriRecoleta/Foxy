@@ -46,7 +46,7 @@ public class MixinLevelRenderer {
                 //Fix the viewport dims that the shader pipeline may have left scaled.
                 glViewport(0, 0, Minecraft.getInstance().getMainRenderTarget().width, Minecraft.getInstance().getMainRenderTarget().height);
 
-                var pos = camera.position();
+                var pos = camera.getPosition();
                 float[] fc = RenderSystem.getShaderFogColor();
                 FogParameters fog = new FogParameters(RenderSystem.getShaderFogStart(), RenderSystem.getShaderFogEnd(), fc[0], fc[1], fc[2], fc[3]);
                 IrisUtil.CAPTURED_VIEWPORT_PARAMETERS = new IrisUtil.CapturedViewportParameters(

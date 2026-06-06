@@ -2,12 +2,15 @@ package com.github.foxy.client.core.model.bakery;
 
 
 import com.github.foxy.common.util.MemoryBuffer;
-import net.minecraft.client.model.geom.builders.UVPair;
 import net.minecraft.client.renderer.block.model.BakedQuad;
 import org.lwjgl.system.MemoryUtil;
 
 import com.mojang.blaze3d.vertex.VertexConsumer;
 
+// Implements the 1.20.1 VertexConsumer interface (vertex/uv/color/.../endVertex), which is the old
+// positional API rather than 1.21's fluent addVertex/setColor/setUv. Foxy only consumes geometry
+// through quad(), which on 1.20.1 decodes BakedQuad.getVertices() directly (no position(i)/
+// packedUV(i) accessors exist here). The interface methods delegate to the same internal writer.
 public final class ReuseVertexConsumer implements VertexConsumer {
     public static final int VERTEX_FORMAT_SIZE = 24;
     private MemoryBuffer buffer = new MemoryBuffer(8192);
@@ -27,7 +30,7 @@ public final class ReuseVertexConsumer implements VertexConsumer {
         return this;
     }
 
-    @Override
+    // Internal writer: advances to the next vertex slot and stores the position + default meta.
     public ReuseVertexConsumer addVertex(float x, float y, float z) {
         this.ensureCanPut();
         this.ptr += VERTEX_FORMAT_SIZE; this.count++; //Goto next vertex
@@ -44,52 +47,62 @@ public final class ReuseVertexConsumer implements VertexConsumer {
     }
 
     @Override
-    public ReuseVertexConsumer setColor(int red, int green, int blue, int alpha) {
-        return this;
+    public VertexConsumer vertex(double x, double y, double z) {
+        return this.addVertex((float) x, (float) y, (float) z);
     }
 
     @Override
-    public VertexConsumer setColor(int i) {
-        return this;
-    }
-
-    @Override
-    public ReuseVertexConsumer setUv(float u, float v) {
+    public VertexConsumer uv(float u, float v) {
         MemoryUtil.memPutFloat(this.ptr + 16, u);
         MemoryUtil.memPutFloat(this.ptr + 20, v);
         return this;
     }
 
     @Override
-    public ReuseVertexConsumer setUv1(int u, int v) {
+    public VertexConsumer color(int red, int green, int blue, int alpha) {
         return this;
     }
 
     @Override
-    public ReuseVertexConsumer setUv2(int u, int v) {
+    public VertexConsumer overlayCoords(int u, int v) {
         return this;
     }
 
     @Override
-    public ReuseVertexConsumer setNormal(float x, float y, float z) {
+    public VertexConsumer uv2(int u, int v) {
         return this;
     }
 
     @Override
-    public VertexConsumer setLineWidth(float f) {
-        return null;
+    public VertexConsumer normal(float x, float y, float z) {
+        return this;
+    }
+
+    @Override
+    public void endVertex() {
+        // No-op: addVertex/uv write directly, so there is no per-vertex flush step.
+    }
+
+    @Override
+    public void defaultColor(int red, int green, int blue, int alpha) {
+    }
+
+    @Override
+    public void unsetDefaultColor() {
     }
 
     public ReuseVertexConsumer quad(BakedQuad quad, int metadata) {
-        this.anyShaded |= quad.shade();
+        this.anyShaded |= quad.isShade();
         this.anyDarkendTex |= false;
         this.ensureCanPut();
+        // 1.20.1 BakedQuad packs 4 vertices into an int[]; each vertex starts at i*stride with the
+        // position as float bits in [0..2] and the texture UV as float bits in [4] and [5].
+        int[] vs = quad.getVertices();
+        int stride = vs.length / 4;
         for (int i = 0; i < 4; i++) {
-            var pos = quad.position(i);
-            this.addVertex(pos.x(), pos.y(), pos.z());
-            long puv = quad.packedUV(i);
-            this.setUv(UVPair.unpackU(puv),UVPair.unpackV(puv));
-
+            int b = i * stride;
+            this.addVertex(Float.intBitsToFloat(vs[b]), Float.intBitsToFloat(vs[b + 1]), Float.intBitsToFloat(vs[b + 2]));
+            this.uv(Float.intBitsToFloat(vs[b + 4]), Float.intBitsToFloat(vs[b + 5]));
             this.meta(metadata);
         }
         return this;

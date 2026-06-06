@@ -1,5 +1,6 @@
 package com.github.foxy.client.core.model;
 
+import net.minecraft.util.Mth;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
@@ -70,7 +71,7 @@ public class ModelFactory {
         }
     }
 
-    private final Biome DEFAULT_BIOME = Minecraft.getInstance().level.registryAccess().lookupOrThrow(Registries.BIOME).getValue(Biomes.PLAINS);
+    private final Biome DEFAULT_BIOME = Minecraft.getInstance().level.registryAccess().registryOrThrow(Registries.BIOME).getOrThrow(Biomes.PLAINS);
 
     public final SoftwareModelTextureBakery bakery2;
     private final long bakeScratchBuffer = MemoryUtil.nmemAlloc(MODEL_TEXTURE_SIZE*MODEL_TEXTURE_SIZE*8*6);
@@ -272,12 +273,12 @@ public class ModelFactory {
     public void processAllThings() {
         var biomeEntry = this.biomeQueue.poll();
         while (biomeEntry != null) {
-            var biomeRegistry = Minecraft.getInstance().level.registryAccess().lookupOrThrow(Registries.BIOME);
-            var mcbiomeEntry = biomeRegistry.get(new ResourceLocation(biomeEntry.biome));
+            var biomeRegistry = Minecraft.getInstance().level.registryAccess().registryOrThrow(Registries.BIOME);
+            var mcbiomeEntry = biomeRegistry.getOptional(new ResourceLocation(biomeEntry.biome));
             if (!mcbiomeEntry.isPresent()) {
                 Logger.error("Could not find biome: " + biomeEntry.biome + " using default");
             }
-            var res = this.addBiome0(biomeEntry.id, mcbiomeEntry.isPresent()?mcbiomeEntry.orElseThrow().value():DEFAULT_BIOME);
+            var res = this.addBiome0(biomeEntry.id, mcbiomeEntry.isPresent()?mcbiomeEntry.orElseThrow():DEFAULT_BIOME);
             if (res != null) {
                 this.uploadResults.add(res);
             }
@@ -683,14 +684,14 @@ public class ModelFactory {
             }
 
             @Override
-            public int getMinY() {
+            public int getMinBuildHeight() {
                 return 0;
             }
         }, BlockPos.ZERO);
         if (isEmissive) {
             return 15;//full bright
         }
-        return Math.clamp(state.getLightEmission(),0,15);
+        return Mth.clamp(state.getLightEmission(),0,15);
     }
 
     private static final class BiomeUploadResult implements ResultUploader {
@@ -771,7 +772,9 @@ public class ModelFactory {
     }
 
     private static BlockColor getColourProvider(Block block) {
-        return Minecraft.getInstance().getBlockColors().blockColors.byId(BuiltInRegistries.BLOCK.getId(block));
+        // 1.20.1 keys BlockColors.blockColors by Holder.Reference<Block>; returns null when no
+        // colour provider is registered for the block (matching upstream voxy semantics).
+        return Minecraft.getInstance().getBlockColors().blockColors.get(block.builtInRegistryHolder());
     }
 
     //TODO: add a method to detect biome dependent colours (can do by detecting if getColor is ever called)
@@ -825,7 +828,7 @@ public class ModelFactory {
             }
 
             @Override
-            public int getMinY() {
+            public int getMinBuildHeight() {
                 return 0;
             }
         };
@@ -881,7 +884,7 @@ public class ModelFactory {
             }
 
             @Override
-            public int getMinY() {
+            public int getMinBuildHeight() {
                 return 0;
             }
         };

@@ -1,5 +1,6 @@
 package com.github.foxy.client.core.rendering.building;
 
+import com.github.foxy.common.util.BitOps;
 import org.lwjgl.system.MemoryUtil;
 
 import java.util.Arrays;
@@ -11,8 +12,8 @@ public class OccupancySet2 {
     private long topLvl;//4x4x4
     private final long[] bottomLvl = new long[4*4*4];
     public void set(final int pos) {
-        final long topBit = 1L<<Integer.compress(pos, 0b1100_1100_1100);
-        final int  botIdx =     Integer.compress(pos, 0b0011_0011_0011);
+        final long topBit = 1L<<BitOps.compress(pos, 0b1100_1100_1100);
+        final int  botIdx =     BitOps.compress(pos, 0b0011_0011_0011);
 
         int baseBotIdx = Long.bitCount(this.topLvl&(topBit-1));
         if ((this.topLvl & topBit) == 0) {
@@ -34,8 +35,8 @@ public class OccupancySet2 {
     }
 
     private boolean get(int pos) {
-        final long topBit = 1L<<Integer.compress(pos, 0b1100_1100_1100);
-        final int  botIdx =     Integer.compress(pos, 0b0011_0011_0011);
+        final long topBit = 1L<<BitOps.compress(pos, 0b1100_1100_1100);
+        final int  botIdx =     BitOps.compress(pos, 0b0011_0011_0011);
         if ((this.topLvl & topBit) == 0) {
             return false;
         }

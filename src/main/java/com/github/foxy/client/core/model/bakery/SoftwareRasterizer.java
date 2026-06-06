@@ -1,5 +1,6 @@
 package com.github.foxy.client.core.model.bakery;
 
+import net.minecraft.util.Mth;
 import com.github.foxy.client.core.model.ModelFactory;
 import net.caffeinemc.mods.sodium.api.util.ColorABGR;
 import net.caffeinemc.mods.sodium.api.util.ColorARGB;
@@ -68,8 +69,8 @@ public class SoftwareRasterizer {
     }
 
     private int sampleTexture(float u, float v) {
-        int pu = Math.clamp(Math.round(u*this.samplerWidth-0.5f), 0, this.samplerWidth-1);
-        int pv = Math.clamp(Math.round(v*this.samplerHeight-0.5f), 0, this.samplerHeight-1);
+        int pu = Mth.clamp(Math.round(u*this.samplerWidth-0.5f), 0, this.samplerWidth-1);
+        int pv = Mth.clamp(Math.round(v*this.samplerHeight-0.5f), 0, this.samplerHeight-1);
         return this.samplerTexture[this.samplerWidth*pv+pu];
     }
 

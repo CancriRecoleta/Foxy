@@ -103,12 +103,13 @@ public class SoftwareModelTextureBakery {
 
         int meta = getMetaFromLayer(layer);
 
-        for (var part : model.collectParts(new SingleThreadedRandomSource(42L))) {
-            for (Direction direction : new Direction[]{Direction.DOWN, Direction.UP, Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST, null}) {
-                var quads = part.getQuads(direction);
-                for (var quad : quads) {
-                    this.vc.quad(quad, meta|(quad.isTinted()?4:0));
-                }
+        // 1.20.1 BakedModel has no collectParts(random); query quads directly per face (and the
+        // null "general" face) via getQuads(state, direction, random).
+        var random = new SingleThreadedRandomSource(42L);
+        for (Direction direction : new Direction[]{Direction.DOWN, Direction.UP, Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST, null}) {
+            var quads = model.getQuads(state, direction, random);
+            for (var quad : quads) {
+                this.vc.quad(quad, meta|(quad.isTinted()?4:0));
             }
         }
     }
@@ -183,7 +184,7 @@ public class SoftwareModelTextureBakery {
             }
 
             @Override
-            public int getMinY() {
+            public int getMinBuildHeight() {
                 return 0;
             }
         }, this.vc, state, state.getFluidState());
@@ -191,7 +192,7 @@ public class SoftwareModelTextureBakery {
     }
 
     private static boolean shouldReturnAirForFluid(BlockPos pos, int face) {
-        var fv = Direction.from3DDataValue(face).getUnitVec3i();
+        var fv = Direction.from3DDataValue(face).getNormal();
         int dot = fv.getX()*pos.getX() + fv.getY()*pos.getY() + fv.getZ()*pos.getZ();
         return dot >= 1;
     }
@@ -294,7 +295,7 @@ public class SoftwareModelTextureBakery {
         stack.mulPose(makeQuatFromAxisExact(new Vector3f(0,0,1), rotation));
         stack.mulPose(makeQuatFromAxisExact(new Vector3f(1,0,0), pitch));
         stack.mulPose(makeQuatFromAxisExact(new Vector3f(0,1,0), yaw));
-        stack.mulPose(new Matrix4f().scale(1-2*(flip&1), 1-(flip&2), 1-((flip>>1)&2)));
+        stack.mulPoseMatrix(new Matrix4f().scale(1-2*(flip&1), 1-(flip&2), 1-((flip>>1)&2)));
         stack.translate(-0.5f,-0.5f,-0.5f);
         var mat = new Matrix4f(stack.last().pose());
 

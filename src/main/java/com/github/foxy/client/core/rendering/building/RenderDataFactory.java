@@ -1,5 +1,6 @@
 package com.github.foxy.client.core.rendering.building;
 
+import com.github.foxy.common.util.BitOps;
 import com.github.foxy.client.core.model.IdNotYetComputedException;
 import com.github.foxy.client.core.model.ModelFactory;
 import com.github.foxy.client.core.model.ModelQueries;
@@ -335,7 +336,7 @@ public class RenderDataFactory {
             //Note this is not thread safe! (but eh, fk it)
             var raw = sec._unsafeGetRawDataArray();
             for (int i = 0; i < 32*32; i++) {
-                this.neighboringFaces[i+32*32*4] = raw[Integer.expand(i,0b11111_00000_11111)|(0x1F<<5)];//pull the +z faces from the section
+                this.neighboringFaces[i+32*32*4] = raw[BitOps.expand(i,0b11111_00000_11111)|(0x1F<<5)];//pull the +z faces from the section
             }
             sec.release(WorldSection.RELEASE_HINT_POSSIBLE_REUSE);
         }
@@ -344,7 +345,7 @@ public class RenderDataFactory {
             //Note this is not thread safe! (but eh, fk it)
             var raw = sec._unsafeGetRawDataArray();
             for (int i = 0; i < 32*32; i++) {
-                this.neighboringFaces[i+32*32*5] = raw[Integer.expand(i,0b11111_00000_11111)];//pull the -z faces from the section
+                this.neighboringFaces[i+32*32*5] = raw[BitOps.expand(i,0b11111_00000_11111)];//pull the -z faces from the section
             }
             sec.release(WorldSection.RELEASE_HINT_POSSIBLE_REUSE);
         }
@@ -929,9 +930,9 @@ public class RenderDataFactory {
                         this.xAxisMeshers[index].skip(31);
                     }
                     //Clear the sum
-                    sumA &= ~(Long.expand(Integer.toUnsignedLong(partialHasCount), X_I_MSK)*0x1F);
-                    sumB &= ~(Long.expand(Integer.toUnsignedLong(partialHasCount)>>11, X_I_MSK)*0x1F);
-                    sumC &= ~(Long.expand(Integer.toUnsignedLong(partialHasCount)>>22, X_I_MSK)*0x1F);
+                    sumA &= ~(BitOps.expand(Integer.toUnsignedLong(partialHasCount), X_I_MSK)*0x1F);
+                    sumB &= ~(BitOps.expand(Integer.toUnsignedLong(partialHasCount)>>11, X_I_MSK)*0x1F);
+                    sumC &= ~(BitOps.expand(Integer.toUnsignedLong(partialHasCount)>>22, X_I_MSK)*0x1F);
                 }
 
                 if (msk == 0) {
@@ -942,9 +943,9 @@ public class RenderDataFactory {
                 {//Dont need this as can just increment everything then -1 in mask
                     //Compute and increment skips for indexes
                     long imsk = Integer.toUnsignedLong(~msk);// we only want to increment where there isnt a face
-                    sumA += Long.expand(imsk, X_I_MSK);
-                    sumB += Long.expand(imsk>>11, X_I_MSK);
-                    sumC += Long.expand(imsk>>22, X_I_MSK);
+                    sumA += BitOps.expand(imsk, X_I_MSK);
+                    sumB += BitOps.expand(imsk>>11, X_I_MSK);
+                    sumC += BitOps.expand(imsk>>22, X_I_MSK);
                 }*/
 
                 int faceForwardMsk = msk&lMsk;
@@ -1146,9 +1147,9 @@ public class RenderDataFactory {
                         this.xAxisMeshers[index].skip(31);
                     }
                     //Clear the sum
-                    sumA &= ~(Long.expand(Integer.toUnsignedLong(partialHasCount), X_I_MSK)*0x1F);
-                    sumB &= ~(Long.expand(Integer.toUnsignedLong(partialHasCount)>>11, X_I_MSK)*0x1F);
-                    sumC &= ~(Long.expand(Integer.toUnsignedLong(partialHasCount)>>22, X_I_MSK)*0x1F);
+                    sumA &= ~(BitOps.expand(Integer.toUnsignedLong(partialHasCount), X_I_MSK)*0x1F);
+                    sumB &= ~(BitOps.expand(Integer.toUnsignedLong(partialHasCount)>>11, X_I_MSK)*0x1F);
+                    sumC &= ~(BitOps.expand(Integer.toUnsignedLong(partialHasCount)>>22, X_I_MSK)*0x1F);
                 }
 
                 if (msk == 0) {
@@ -1438,9 +1439,9 @@ public class RenderDataFactory {
                         this.secondaryXAxisMeshers[index].skip(31);
                     }
                     //Clear the sum
-                    sumA &= ~(Long.expand(Integer.toUnsignedLong(partialHasCount), X_I_MSK)*0x1F);
-                    sumB &= ~(Long.expand(Integer.toUnsignedLong(partialHasCount)>>11, X_I_MSK)*0x1F);
-                    sumC &= ~(Long.expand(Integer.toUnsignedLong(partialHasCount)>>22, X_I_MSK)*0x1F);
+                    sumA &= ~(BitOps.expand(Integer.toUnsignedLong(partialHasCount), X_I_MSK)*0x1F);
+                    sumB &= ~(BitOps.expand(Integer.toUnsignedLong(partialHasCount)>>11, X_I_MSK)*0x1F);
+                    sumC &= ~(BitOps.expand(Integer.toUnsignedLong(partialHasCount)>>22, X_I_MSK)*0x1F);
                 }
 
                 if (msk == 0) {

@@ -6,6 +6,17 @@ import net.irisshaders.iris.gl.texture.TextureType;
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
 
 public class VoxySamplers {
+    // Oculus's SamplerHolder.addDynamicSampler takes a GlSampler instance (not a Supplier), and
+    // GlSampler has no predefined MIPPED_NEAREST_NEAREST constant, so build one lazily and reuse it:
+    // nearest filtering with mipmapping enabled (GlSampler(linear=false, mipmapped=true, ...)).
+    private static GlSampler MIPPED_NEAREST;
+    private static GlSampler mippedNearest() {
+        if (MIPPED_NEAREST == null) {
+            MIPPED_NEAREST = new GlSampler(false, true, false, false);
+        }
+        return MIPPED_NEAREST;
+    }
+
     public static void addSamplers(IrisRenderingPipeline pipeline, SamplerHolder samplers) {
         var patchData = ((IGetVoxyPatchData)pipeline).voxy$getPatchData();
         if (patchData != null) {
@@ -33,7 +44,7 @@ public class VoxySamplers {
                     return 0;
                 }
                 return dt.id;
-            }, ()->GlSampler.MIPPED_NEAREST_NEAREST, opaqueNames);
+            }, mippedNearest(), opaqueNames);
 
             samplers.addDynamicSampler(TextureType.TEXTURE_2D, () -> {
                 var pipeData = ((IGetIrisVoxyPipelineData)pipeline).voxy$getPipelineData();
@@ -49,7 +60,7 @@ public class VoxySamplers {
                     return 0;
                 }
                 return dt.id;
-            }, ()->GlSampler.MIPPED_NEAREST_NEAREST, translucentNames);
+            }, mippedNearest(), translucentNames);
         }
     }
 }
