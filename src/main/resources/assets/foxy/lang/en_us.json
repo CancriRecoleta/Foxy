@@ -17,6 +17,9 @@
   "foxy.config.general.ingest": "Chunk ingest",
   "foxy.config.general.ingest.tooltip": "Enables or disables Foxy's ability to convert loaded chunks into LODs.",
 
+  "foxy.config.general.logging": "Logging",
+  "foxy.config.general.logging.tooltip": "Enables or disables all of Foxy's log output (info, warnings and errors), including the in-game error popup. Turn off to fully silence Foxy.",
+
   "foxy.config.general.rendering": "Foxy rendering",
   "foxy.config.general.rendering.tooltip": "Enables or disables Foxy rendering.",
 

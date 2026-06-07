@@ -24,6 +24,10 @@ public class FoxyConfig {
             .create();
 
     public static FoxyConfig CONFIG = loadOrCreate();
+    static {
+        // Apply the persisted logging toggle as soon as the config is loaded.
+        CONFIG.applyLogging();
+    }
 
     public boolean enabled = true;
     public boolean ingestEnabled = true;
@@ -32,6 +36,7 @@ public class FoxyConfig {
     public float subDivisionSize = 64;
     public boolean useEnvironmentalFog = true;
     public boolean dontUseSodiumBuilderThreads = false;
+    public boolean loggingEnabled = true;
     public String ssaoMode;
 
     public SSAO.SSAOMode getSSAOMode() {
@@ -43,6 +48,13 @@ public class FoxyConfig {
 
     public void setSSAOMode(SSAO.SSAOMode mode) {
         this.ssaoMode = mode.name().toLowerCase(Locale.ROOT);
+    }
+
+    // Mirror the persisted logging toggle onto the global Logger switch.
+    // loggingEnabled == false silences all of Foxy's log output (info/warn/error) and the in-game
+    // error popup via Logger.SHUTUP.
+    public void applyLogging() {
+        Logger.SHUTUP = !this.loggingEnabled;
     }
 
 

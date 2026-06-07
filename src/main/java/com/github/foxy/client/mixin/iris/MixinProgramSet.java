@@ -24,7 +24,13 @@ public class MixinProgramSet implements IGetFoxyPatchData {
     @Shadow @Final private PackDirectives packDirectives;
     @Unique IrisShaderPatch patchData;
 
-    @Inject(method = "<init>", at = @At(value = "INVOKE", target = "Lnet/irisshaders/iris/shaderpack/programs/ProgramSet;locateDirectives()V", shift = At.Shift.BEFORE))
+    // Forge's Mixin 0.8.5 forbids @Inject into a constructor at any non-RETURN instruction, so this runs
+    // at @At("TAIL") (end of <init>) rather than mid-ctor before locateDirectives(). The handler only
+    // uses the constructor parameters (pack/directory/sourceProvider) and writes Foxy's own patchData
+    // field, which nothing in the vanilla ctor touches, so running at TAIL is equivalent. ProgramSet is
+    // fully built before IrisRenderingPipeline reads this patchData. (Upstream's Fabric Mixin allows the
+    // mid-ctor inject; Forge's does not.)
+    @Inject(method = "<init>", at = @At("TAIL"))
     private void foxy$injectPatchMaker(AbsolutePackPath directory, Function<AbsolutePackPath, String> sourceProvider, ShaderProperties shaderProperties, ShaderPack pack, CallbackInfo ci) {
         if (FoxyConfig.CONFIG.isRenderingEnabled() && IrisUtil.SHADER_SUPPORT) {
             this.patchData = IrisShaderPatch.makePatch(pack, directory, sourceProvider);

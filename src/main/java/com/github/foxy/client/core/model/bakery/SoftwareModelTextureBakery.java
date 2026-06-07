@@ -79,6 +79,15 @@ public class SoftwareModelTextureBakery {
         glPixelStorei(GL_PACK_SKIP_PIXELS, 0);
         glPixelStorei(GL_PACK_ALIGNMENT, 4);
         glGetTextureImage(texId, 0, GL_RGBA, GL_UNSIGNED_BYTE, texture);
+        // Restore default pixel-PACK state. GL_PACK_* is GLOBAL GL state; leaving GL_PACK_ROW_LENGTH at
+        // the atlas width corrupts any later glGetTexImage/glReadPixels into a tightly-packed client
+        // buffer. Notably MC's world-icon auto-screenshot on first entering a new world
+        // (GameRenderer.takeAutoScreenshot -> Screenshot.takeScreenshot -> NativeImage.downloadTexture
+        // -> glGetTexImage) then writes rows at the stale wider stride, overflows its NativeImage, and
+        // crashes natively in the GL driver (EXCEPTION_ACCESS_VIOLATION in nvoglv64). Upstream only
+        // resets the UNPACK side (in ModelFactory); the PACK side must be reset too.
+        glPixelStorei(GL_PACK_ROW_LENGTH, 0);
+        glPixelStorei(GL_PACK_IMAGE_HEIGHT, 0);
         this.rasterizer.setSamplerTexture(texture, width, height);
     }
 

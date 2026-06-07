@@ -27,15 +27,18 @@ public class MixinIrisRenderingPipeline implements IGetFoxyPatchData, IGetIrisFo
     @Unique
     IrisFoxyRenderPipelineData pipeline;
 
-    @Inject(method = "<init>", at = @At(value = "INVOKE", target = "Lnet/irisshaders/iris/pipeline/transform/ShaderPrinter;resetPrintState()V", shift = At.Shift.AFTER))
-    private void foxy$injectPatchDataStore(ProgramSet programSet, CallbackInfo ci) {
+    // Forge's Mixin 0.8.5 forbids @Inject into a constructor at any non-RETURN instruction
+    // ("Cannot inject into constructors at non-return instructions"), so the upstream pair of
+    // INVOKE-point injectors (capture patchData at resetPrintState, then build the pipeline at
+    // createSetupComputes) is merged into a single @At("TAIL") callback that runs once the pipeline is
+    // fully constructed. Order is therefore guaranteed (patchData is set before it is read), and the
+    // @Shadow ctor fields customUniforms/shaderStorageBufferHolder are fully assigned by TAIL.
+    // (Upstream's Fabric Mixin permits the mid-ctor injects; Forge's does not.)
+    @Inject(method = "<init>", at = @At("TAIL"))
+    private void foxy$injectPipeline(ProgramSet programSet, CallbackInfo ci) {
         if (IrisUtil.SHADER_SUPPORT) {
             this.patchData = ((IGetFoxyPatchData) programSet).foxy$getPatchData();
         }
-    }
-
-    @Inject(method = "<init>", at = @At(value = "INVOKE", target = "Lnet/irisshaders/iris/pipeline/IrisRenderingPipeline;createSetupComputes([Lnet/irisshaders/iris/shaderpack/programs/ComputeSource;Lnet/irisshaders/iris/shaderpack/programs/ProgramSet;Lnet/irisshaders/iris/shaderpack/texture/TextureStage;)[Lnet/irisshaders/iris/gl/program/ComputeProgram;"))
-    private void foxy$injectPipeline(ProgramSet programSet, CallbackInfo ci) {
         if (this.patchData != null) {
             this.pipeline = IrisFoxyRenderPipelineData.buildPipeline((IrisRenderingPipeline)(Object)this, this.patchData, this.customUniforms, this.shaderStorageBufferHolder);
         }

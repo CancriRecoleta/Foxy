@@ -2,6 +2,19 @@
 
 #import <foxy:util/depthutils.glsl>
 
+// Seam-overlap mitigation (deliberate divergence from upstream Voxy, which hardcodes 0.0005).
+// This pulls the per-section depth bound toward the camera in clip-space depth, so distant LOD
+// is allowed to overlap a little way INTO the vanilla render-distance edge instead of being
+// clipped exactly at the section shells. That overlap hides the section pop-in/out flicker seen
+// while moving along the vanilla<->LOD seam. The overlapping LOD is still depth-tested (GL_LEQUAL)
+// against real vanilla geometry in the main pass, so it only shows through gaps and never bleeds
+// in front of solid vanilla blocks.
+//   - larger  -> more overlap, less seam flicker (try up to ~0.004f); too large can let LOD
+//                poke through at the very edge.
+//   - 0.0005f -> upstream-faithful behaviour.
+//   - 0.0f    -> no bias at all.
+#define FOXY_SEAM_OVERLAP_BIAS 0.0015f
+
 layout(binding = 0, std140) uniform SceneUniform {
     mat4 MVP;
     ivec4 cameraBlockPos;
@@ -45,7 +58,7 @@ void main() {
     gl_Position = MVP * vec4(vec3(cubeCornerI+origin), 1);
 
     //TODO: FIXME with reverse z need tobe + not -
-    gl_Position.z += CLOSER_SIGN*0.0005f;//Bring closer to camera
+    gl_Position.z += CLOSER_SIGN*FOXY_SEAM_OVERLAP_BIAS;//Bring closer to camera (seam-overlap, see top of file)
 
     #ifdef TAA
     gl_Position.xy += getTAA()*gl_Position.w;//Apply TAA if we have it

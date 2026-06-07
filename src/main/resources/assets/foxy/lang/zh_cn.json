@@ -1,6 +1,6 @@
 {
   "foxy.config.title": "Foxy",
-  "foxy.config.page": "设置",
+  "foxy.config.page": "配置界面",
 
   "foxy.config.general": "常规",
   "foxy.config.rendering": "渲染",
@@ -16,6 +16,9 @@
 
   "foxy.config.general.ingest": "区块摄取",
   "foxy.config.general.ingest.tooltip": "启用或禁用 Foxy 将已加载区块转换为 LOD 的能力。",
+
+  "foxy.config.general.logging": "日志",
+  "foxy.config.general.logging.tooltip": "启用或禁用 Foxy 的全部日志输出（信息、警告和错误），包括游戏内的错误提示。关闭后将完全静默 Foxy。",
 
   "foxy.config.general.rendering": "Foxy 渲染",
   "foxy.config.general.rendering.tooltip": "启用或禁用 Foxy 渲染。",

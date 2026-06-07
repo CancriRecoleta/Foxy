@@ -5,7 +5,6 @@ import com.github.foxy.common.world.service.VoxelIngestService;
 import com.github.foxy.commonImpl.FoxyCommon;
 import com.github.foxy.commonImpl.FoxyInstance;
 import com.github.foxy.commonImpl.WorldIdentifier;
-import net.minecraft.client.multiplayer.ClientChunkCache;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.renderer.LevelRenderer;
@@ -18,7 +17,6 @@ import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkStatus;
 import net.minecraft.world.level.dimension.DimensionType;
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -31,10 +29,6 @@ public abstract class MixinClientLevel {
 
     @Unique
     private int bottomSectionY;
-
-    @Shadow @Final public LevelRenderer levelRenderer;
-
-    @Shadow public abstract ClientChunkCache getChunkSource();
 
     @Inject(method = "<init>", at = @At("TAIL"))
     private void foxy$getBottom(

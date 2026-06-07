@@ -146,6 +146,14 @@ public final class EmbeddiumConfigIntegration {
                         enabledGate))
                 .build());
 
+        // Master logging toggle. Independent of the enable gate so logs can always be silenced.
+        groups.add(OptionGroup.createBuilder()
+                .add(boolOption("logging", "foxy.config.general.logging",
+                        cfg -> cfg.loggingEnabled,
+                        (cfg, v) -> { cfg.loggingEnabled = v; cfg.applyLogging(); },
+                        null))
+                .build());
+
         // --- rendering / quality (was the "Rendering" page). The separate "Foxy rendering" toggle was
         // merged into the master "Enable Foxy" switch, so these are gated only by enabled. ---
         groups.add(OptionGroup.createBuilder()
