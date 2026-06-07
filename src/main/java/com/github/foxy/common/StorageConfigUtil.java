@@ -5,7 +5,7 @@ import com.github.foxy.common.config.compressors.ZSTDCompressor;
 import com.github.foxy.common.config.section.SectionSerializationStorage;
 import com.github.foxy.common.config.section.SectionStorageConfig;
 import com.github.foxy.common.config.storage.other.CompressionStorageAdaptor;
-import com.github.foxy.common.config.storage.lmdb.LMDBStorageBackend;
+import com.github.foxy.common.config.storage.rocksdb.RocksDBStorageBackend;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -53,9 +53,14 @@ public class StorageConfigUtil {
     }
 
     public static SectionSerializationStorage.Config createDefaultSerializer() {
-        //Create the default config. LMDB is the default backend because it ships as an LWJGL module
-        //(visible everywhere), unlike the optional RocksDB/Redis backends.
-        var baseDB = new LMDBStorageBackend.Config();
+        //Create the default config. RocksDB is the default backend, matching upstream Voxy 1:1: it is
+        //heavily tuned for this write-heavy point-lookup workload (HyperClockCache, BloomFilter,
+        //optimizeForPointLookup, batched writes) whereas LMDB stalls every concurrent service-thread
+        //transaction on each stop-the-world map resize. RocksDB is now bundled (build.gradle embeddedLibs
+        //rocksdbjni + its native flattened into the jar), so the old "RocksDB not visible" reason for
+        //defaulting to LMDB no longer applies. LMDB stays selectable as a fallback. NOTE: the backend is
+        //baked into each store's config.json at creation, so this only affects newly-created stores.
+        var baseDB = new RocksDBStorageBackend.Config();
 
         var compressor = new ZSTDCompressor.Config();
         compressor.compressionLevel = 1;
