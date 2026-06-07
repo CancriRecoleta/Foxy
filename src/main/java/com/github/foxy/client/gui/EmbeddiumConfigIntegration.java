@@ -46,13 +46,12 @@ import java.util.function.Function;
 public final class EmbeddiumConfigIntegration {
     private EmbeddiumConfigIntegration() {}
 
-    private enum Hook { ENABLED_CHANGED, RENDERING_CHANGED, RENDER_DISTANCE_CHANGED, RENDER_RELOAD, UPDATE_THREADS, IRIS_RELOAD }
+    private enum Hook { ENABLED_CHANGED, RENDER_DISTANCE_CHANGED, RENDER_RELOAD, UPDATE_THREADS, IRIS_RELOAD }
     private static final EnumSet<Hook> PENDING = EnumSet.noneOf(Hook.class);
 
-    // References to the gating options so dependent options can read their LIVE (pending) value for
-    // enable/disable, matching upstream's setEnabler("foxy:enabled")/setEnablerAND(...).
+    // Reference to the master enable option so dependent options can read its LIVE (pending) value
+    // for enable/disable, matching upstream's setEnabler("foxy:enabled").
     private static OptionImpl<FoxyConfig, Boolean> enabledOption;
-    private static OptionImpl<FoxyConfig, Boolean> renderingOption;
 
     private static final OptionStorage<FoxyConfig> STORAGE = new OptionStorage<>() {
         @Override public FoxyConfig getData() { return FoxyConfig.CONFIG; }
@@ -97,9 +96,6 @@ public final class EmbeddiumConfigIntegration {
                 vrsh.foxy$createRenderer();
             }
         } else if (vrsh != null) {
-            if (PENDING.contains(Hook.RENDERING_CHANGED)) {
-                if (cfg.enableRendering) vrsh.foxy$createRenderer(); else vrsh.foxy$shutdownRenderer();
-            }
             if (PENDING.contains(Hook.RENDER_DISTANCE_CHANGED)) {
                 FoxyRenderSystem vrs = vrsh.foxy$getRenderSystem();
                 if (vrs != null) vrs.setRenderDistance(cfg.sectionRenderDistance);
@@ -150,33 +146,26 @@ public final class EmbeddiumConfigIntegration {
                         enabledGate))
                 .build());
 
-        // --- rendering / quality (was the "Rendering" page) ---
-        renderingOption = boolOption("rendering", "foxy.config.general.rendering",
-                cfg -> cfg.enableRendering,
-                (cfg, v) -> { cfg.enableRendering = v; PENDING.add(Hook.RENDERING_CHANGED); PENDING.add(Hook.IRIS_RELOAD); },
-                enabledGate); // upstream: only requires "foxy:enabled"
-        groups.add(OptionGroup.createBuilder().add(renderingOption).build());
-
-        BooleanSupplier renderGate = () -> enabledOption.getValue() && renderingOption.getValue();
-
+        // --- rendering / quality (was the "Rendering" page). The separate "Foxy rendering" toggle was
+        // merged into the master "Enable Foxy" switch, so these are gated only by enabled. ---
         groups.add(OptionGroup.createBuilder()
                 .add(intOption("subdivsize", "foxy.config.general.subDivisionSize",
                         0, SUBDIV_IN_MAX, 1,
                         v -> Component.literal(Integer.toString(Math.round(ln2subDiv(v)))),
                         cfg -> subDiv2ln(cfg.subDivisionSize),
                         (cfg, v) -> cfg.subDivisionSize = ln2subDiv(v),
-                        OptionImpact.HIGH, renderGate))
+                        OptionImpact.HIGH, enabledGate))
                 .add(intOption("render_distance", "foxy.config.general.renderDistance",
                         10, 64 * 16, 1,
                         v -> Component.literal(Integer.toString(v * 2)),
                         cfg -> Math.round(cfg.sectionRenderDistance * 16),
                         (cfg, v) -> { cfg.sectionRenderDistance = ((float) v) / 16; PENDING.add(Hook.RENDER_DISTANCE_CHANGED); },
-                        OptionImpact.MEDIUM, renderGate))
+                        OptionImpact.MEDIUM, enabledGate))
                 .build());
 
         // Fog + SSAO are also disabled while an Iris shader pack is active (upstream: setEnablerInherit
-        // !irisShadersEnabledInConfig), in addition to the enabled+rendering gate.
-        BooleanSupplier shaderGate = () -> enabledOption.getValue() && renderingOption.getValue() && !IrisUtil.irisShadersEnabledInConfig();
+        // !irisShadersEnabledInConfig), in addition to the enabled gate.
+        BooleanSupplier shaderGate = () -> enabledOption.getValue() && !IrisUtil.irisShadersEnabledInConfig();
         groups.add(OptionGroup.createBuilder()
                 .add(boolOption("environmental_fog", "foxy.config.general.environmental_fog",
                         cfg -> cfg.useEnvironmentalFog,

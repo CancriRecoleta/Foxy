@@ -26,7 +26,6 @@ public class FoxyConfig {
     public static FoxyConfig CONFIG = loadOrCreate();
 
     public boolean enabled = true;
-    public boolean enableRendering = true;
     public boolean ingestEnabled = true;
     public float sectionRenderDistance = 16;
     public int serviceThreads = (int) Math.max(CpuLayout.getCoreCount()/1.5, 1);
@@ -70,7 +69,6 @@ public class FoxyConfig {
         } else {
             var config = new FoxyConfig();
             config.enabled = false;
-            config.enableRendering = false;
             return config;
         }
     }
@@ -95,6 +93,6 @@ public class FoxyConfig {
     }
 
     public boolean isRenderingEnabled() {
-        return FoxyCommon.isAvailable() && this.enabled && this.enableRendering;
+        return FoxyCommon.isAvailable() && this.enabled;
     }
 }
