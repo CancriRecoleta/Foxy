@@ -53,7 +53,16 @@ public class VoxyCommands {
                 .then(Commands.literal("cancel")
                         .executes(VoxyCommands::cancelImport));
 
-        if (DHImporter.HasRequiredLibraries) {
+        // Distant Horizons import needs the optional xz/sqlite-jdbc libraries. Loading DHImporter
+        // pulls in org.tukaani.xz types, so guard against a NoClassDefFoundError when those libs are
+        // not present on the classpath and simply omit the command in that case.
+        boolean dhAvailable;
+        try {
+            dhAvailable = DHImporter.HasRequiredLibraries;
+        } catch (Throwable t) {
+            dhAvailable = false;
+        }
+        if (dhAvailable) {
             imports = imports
                     .then(Commands.literal("distant_horizons")
                     .then(Commands.argument("sqlDbPath", StringArgumentType.string())

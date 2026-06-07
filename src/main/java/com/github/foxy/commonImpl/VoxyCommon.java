@@ -13,24 +13,28 @@ public class VoxyCommon {
     public static final boolean IS_IN_MINECRAFT;
 
     static {
+        // This class may be touched very early (during mixin/AT transform) before the "foxy" mod
+        // container is queryable, so the static initializer must not depend on it. We are always
+        // loaded inside Forge here; the version is filled in best-effort. The config serialization
+        // scan (which walks the mod file) is deferred to bootstrap(), run from the @Mod constructor
+        // once ModList is fully populated.
         ModList modList = ModList.get();
         ModContainer mod = modList == null ? null : modList.getModContainerById("foxy").orElse(null);
-        if (mod == null) {
-            IS_IN_MINECRAFT = false;
-            Logger.error("Running foxy without minecraft");
-            MOD_VERSION = "<UNKNOWN>";
-            IS_DEDICATED_SERVER = false;
-        } else {
-            IS_IN_MINECRAFT = true;
-            MOD_VERSION = mod.getModInfo().getVersion().toString();
-            IS_DEDICATED_SERVER = FMLEnvironment.dist == Dist.DEDICATED_SERVER;
-            Serialization.init();
-        }
+        IS_IN_MINECRAFT = true;
+        MOD_VERSION = mod != null ? mod.getModInfo().getVersion().toString() : "<UNKNOWN>";
+        IS_DEDICATED_SERVER = FMLEnvironment.dist == Dist.DEDICATED_SERVER;
     }
 
-    // Forces this class to load, running the static initializer above (mod version + config
-    // serialization setup). Called from the @Mod entrypoint during construction.
-    public static void bootstrap() {}
+    private static boolean bootstrapped = false;
+    // Called from the @Mod entrypoint during construction (ModList ready), runs config serialization
+    // setup. Idempotent so an early class-load followed by the explicit call only initialises once.
+    public static synchronized void bootstrap() {
+        if (bootstrapped) {
+            return;
+        }
+        bootstrapped = true;
+        Serialization.init();
+    }
 
     //This is hardcoded like this because people do not understand what they are doing
     public static boolean isVerificationFlagOn(String name) {

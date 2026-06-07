@@ -6,6 +6,7 @@ import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectSet;
+import com.github.foxy.client.mixin.minecraft.AccessorBlockColors;
 import com.github.foxy.client.core.gl.GlBuffer;
 import com.github.foxy.client.core.gl.GlTexture;
 import com.github.foxy.client.core.model.bakery.SoftwareModelTextureBakery;
@@ -773,8 +774,10 @@ public class ModelFactory {
 
     private static BlockColor getColourProvider(Block block) {
         // 1.20.1 keys BlockColors.blockColors by Holder.Reference<Block>; returns null when no
-        // colour provider is registered for the block (matching upstream voxy semantics).
-        return Minecraft.getInstance().getBlockColors().blockColors.get(block.builtInRegistryHolder());
+        // colour provider is registered for the block (matching upstream voxy semantics). The map
+        // is reached via a mixin accessor (see AccessorBlockColors) rather than an AT.
+        return ((AccessorBlockColors) (Object) Minecraft.getInstance().getBlockColors())
+                .foxy$getBlockColors().get(block.builtInRegistryHolder());
     }
 
     //TODO: add a method to detect biome dependent colours (can do by detecting if getColor is ever called)

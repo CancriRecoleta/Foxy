@@ -16,7 +16,7 @@
     "iris.MixinProgramSet",
     "iris.MixinShaderPackSourceNames",
     "iris.MixinStandardMacros",
-    "minecraft.MixinBlockableEventLoop",
+    "minecraft.AccessorBlockColors",
     "minecraft.MixinClientChunkCache",
     "minecraft.MixinClientLevel",
     "minecraft.MixinClientPacketListener",
@@ -33,7 +33,7 @@
     "sodium.MixinSodiumWorldRenderer"
   ],
   "injectors": {
-    "defaultRequire": 1
+    "defaultRequire": 0
   },
   "overwrites": {
     "requireAnnotations": true

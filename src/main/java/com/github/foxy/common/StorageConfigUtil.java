@@ -5,7 +5,7 @@ import com.github.foxy.common.config.compressors.ZSTDCompressor;
 import com.github.foxy.common.config.section.SectionSerializationStorage;
 import com.github.foxy.common.config.section.SectionStorageConfig;
 import com.github.foxy.common.config.storage.other.CompressionStorageAdaptor;
-import com.github.foxy.common.config.storage.rocksdb.RocksDBStorageBackend;
+import com.github.foxy.common.config.storage.lmdb.LMDBStorageBackend;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -53,8 +53,9 @@ public class StorageConfigUtil {
     }
 
     public static SectionSerializationStorage.Config createDefaultSerializer() {
-        //Create the default config
-        var baseDB = new RocksDBStorageBackend.Config();
+        //Create the default config. LMDB is the default backend because it ships as an LWJGL module
+        //(visible everywhere), unlike the optional RocksDB/Redis backends.
+        var baseDB = new LMDBStorageBackend.Config();
 
         var compressor = new ZSTDCompressor.Config();
         compressor.compressionLevel = 1;

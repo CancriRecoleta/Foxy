@@ -179,11 +179,13 @@ dependencies {
     runtimeOnly "org.lwjgl:lwjgl-lmdb:3.3.1:natives-windows"
     runtimeOnly "org.lwjgl:lwjgl-zstd:3.3.1:natives-windows"
 
-    implementation "redis.clients:jedis:5.1.0"
-    implementation "org.rocksdb:rocksdbjni:10.2.1"
-    implementation "org.apache.commons:commons-pool2:2.12.0"
-    implementation "org.lz4:lz4-java:1.8.0"
-    implementation"org.tukaani:xz:1.10"
+    // Storage/compression libraries are jar-in-jar'd (like upstream voxy bundles them) so they live
+    // in the Foxy module and are visible under Forge's module classloader in dev and production.
+    implementation(jarJar("redis.clients:jedis:5.1.0")) { jarJar.ranged(it, "[5.1.0,)") }
+    implementation(jarJar("org.rocksdb:rocksdbjni:10.2.1")) { jarJar.ranged(it, "[10.2.1,)") }
+    implementation(jarJar("org.apache.commons:commons-pool2:2.12.0")) { jarJar.ranged(it, "[2.12.0,)") }
+    implementation(jarJar("org.lz4:lz4-java:1.8.0")) { jarJar.ranged(it, "[1.8.0,)") }
+    implementation(jarJar("org.tukaani:xz:1.10")) { jarJar.ranged(it, "[1.10,)") }
 }
 
 // This block of code expands all declared replace properties in the specified resource targets.
