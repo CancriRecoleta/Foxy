@@ -10,7 +10,7 @@ import com.github.foxy.client.core.rendering.post.FullscreenBlit;
 import com.github.foxy.client.core.rendering.section.backend.AbstractSectionRenderer;
 import com.github.foxy.client.core.rendering.util.DepthFramebuffer;
 import com.github.foxy.client.core.rendering.util.UploadStream;
-import com.github.foxy.client.iris.IrisVoxyRenderPipelineData;
+import com.github.foxy.client.iris.IrisFoxyRenderPipelineData;
 import net.irisshaders.iris.shaderpack.materialmap.WorldRenderingSettings;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL30;
@@ -23,8 +23,8 @@ import static org.lwjgl.opengl.GL30C.*;
 import static org.lwjgl.opengl.GL31.GL_UNIFORM_BUFFER;
 import static org.lwjgl.opengl.GL45C.*;
 
-public class IrisVoxyRenderPipeline extends AbstractRenderPipeline {
-    private final IrisVoxyRenderPipelineData data;
+public class IrisFoxyRenderPipeline extends AbstractRenderPipeline {
+    private final IrisFoxyRenderPipelineData data;
     private final FullscreenBlit depthBlit;
     public final DepthFramebuffer fbTranslucent = new DepthFramebuffer(this.fb.getFormat());
 
@@ -32,7 +32,7 @@ public class IrisVoxyRenderPipeline extends AbstractRenderPipeline {
 
     private final GlBuffer shaderUniforms;
 
-    public IrisVoxyRenderPipeline(RenderProperties properties, IrisVoxyRenderPipelineData data, AsyncNodeManager nodeManager, NodeCleaner nodeCleaner, HierarchicalOcclusionTraverser traversal, BooleanSupplier frexSupplier) {
+    public IrisFoxyRenderPipeline(RenderProperties properties, IrisFoxyRenderPipelineData data, AsyncNodeManager nodeManager, NodeCleaner nodeCleaner, HierarchicalOcclusionTraverser traversal, BooleanSupplier frexSupplier) {
         super(properties, nodeManager, nodeCleaner, traversal, frexSupplier, data.shouldDeferTranslucency());
         this.data = data;
         if (this.data.thePipeline != null) {
@@ -67,12 +67,12 @@ public class IrisVoxyRenderPipeline extends AbstractRenderPipeline {
         }
 
         if (!this.data.skipShaderDepthHackFix) {
-            this.shaderDepthHackFixTransformBlit = new FullscreenBlit(properties, "voxy:post/fullscreen2.vert", "voxy:post/noop.frag");
+            this.shaderDepthHackFixTransformBlit = new FullscreenBlit(properties, "foxy:post/fullscreen2.vert", "foxy:post/noop.frag");
         } else {
             this.shaderDepthHackFixTransformBlit = null;
         }
 
-        this.depthBlit = new FullscreenBlit(properties, "voxy:post/blit_texture_depth_cutout.frag");
+        this.depthBlit = new FullscreenBlit(properties, "foxy:post/blit_texture_depth_cutout.frag");
     }
 
     @Override

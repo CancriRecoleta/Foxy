@@ -27,7 +27,7 @@ public class FullscreenBlit {
     }
 
     public <T extends Shader> FullscreenBlit(RenderProperties properties, String fragId, Consumer<Shader.Builder<T>> applyer) {
-        this(properties, "voxy:post/fullscreen.vert", fragId, applyer);
+        this(properties, "foxy:post/fullscreen.vert", fragId, applyer);
     }
 
     public <T extends Shader> FullscreenBlit(RenderProperties properties, String vertId, String fragId, Consumer<Shader.Builder<T>> applyer) {

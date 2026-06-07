@@ -18,11 +18,11 @@ public class MixinGPUSelect {
     // Mixin forbids @At("HEAD") on a constructor (it would precede the super() call); 1.20.1's
     // Minecraft constructor also doesn't call Options.save(), so inject at TAIL. The thread-priority
     // bump applies fine here; the opt-in Windows GPU selection is only meaningful when the
-    // voxy.forceGpuSelectionIndex property is set.
+    // foxy.forceGpuSelectionIndex property is set.
     @Inject(method = "<init>", at = @At("TAIL"))
-    private void voxy$injectInitWindow(GameConfig gc, CallbackInfo ci) {
+    private void foxy$injectInitWindow(GameConfig gc, CallbackInfo ci) {
         //System.load("C:\\Program Files\\RenderDoc\\renderdoc.dll");
-        var prop = System.getProperty("voxy.forceGpuSelectionIndex", "NO");
+        var prop = System.getProperty("foxy.forceGpuSelectionIndex", "NO");
         if (!prop.equals("NO")) {
             GPUSelectorWindows2.doSelector(Integer.parseInt(prop));
         }

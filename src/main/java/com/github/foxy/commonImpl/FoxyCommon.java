@@ -7,7 +7,7 @@ import net.minecraftforge.fml.ModContainer;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.loading.FMLEnvironment;
 
-public class VoxyCommon {
+public class FoxyCommon {
     public static final String MOD_VERSION;
     public static final boolean IS_DEDICATED_SERVER;
     public static final boolean IS_IN_MINECRAFT;
@@ -49,8 +49,8 @@ public class VoxyCommon {
         int breakpoint = 0;
     }
 
-    public interface IInstanceFactory {VoxyInstance create();}
-    private static VoxyInstance INSTANCE;
+    public interface IInstanceFactory {FoxyInstance create();}
+    private static FoxyInstance INSTANCE;
     private static IInstanceFactory FACTORY = null;
 
     public static void setInstanceFactory(IInstanceFactory factory) {
@@ -60,7 +60,7 @@ public class VoxyCommon {
         FACTORY = factory;
     }
 
-    public static VoxyInstance getInstance() {
+    public static FoxyInstance getInstance() {
         return INSTANCE;
     }
 
@@ -74,7 +74,7 @@ public class VoxyCommon {
 
     public static void createInstance() {
         if (FACTORY == null) {
-            //Logger.info("Voxy factory");
+            //Logger.info("Foxy factory");
             return;
         }
         if (INSTANCE != null) {
@@ -83,7 +83,7 @@ public class VoxyCommon {
         INSTANCE = FACTORY.create();
     }
 
-    //Is voxy available in any capacity
+    //Is foxy available in any capacity
     public static boolean isAvailable() {
         return FACTORY != null;
     }

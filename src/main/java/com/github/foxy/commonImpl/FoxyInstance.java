@@ -18,7 +18,7 @@ import java.util.function.BooleanSupplier;
 import java.util.stream.Collectors;
 
 //TODO: add thread access verification (I.E. only accessible on a single thread)
-public abstract class VoxyInstance {
+public abstract class FoxyInstance {
     private volatile boolean isRunning = true;
     private final Thread worldCleaner;
     public final BooleanSupplier savingServiceRateLimiter;//Can run if this returns true
@@ -31,8 +31,8 @@ public abstract class VoxyInstance {
 
     protected final ImportManager importManager;
 
-    public VoxyInstance() {
-        Logger.info("Initializing voxy instance");
+    public FoxyInstance() {
+        Logger.info("Initializing foxy instance");
         this.threadPool = new UnifiedServiceThreadPool();
         this.savingService = new SectionSavingService(this.getServiceManager());
         this.ingestService = new VoxelIngestService(this.getServiceManager());
@@ -60,7 +60,7 @@ public abstract class VoxyInstance {
     protected void setNumThreads(int threads) {
         if (threads<0) throw new IllegalArgumentException("Num threads <0");
         if (this.threadPool.setNumThreads(threads)) {
-            Logger.info("Dedicated voxy thread pool size: " + threads);
+            Logger.info("Dedicated foxy thread pool size: " + threads);
         }
     }
 
@@ -132,7 +132,7 @@ public abstract class VoxyInstance {
 
     public WorldEngine getOrCreate(WorldIdentifier identifier, boolean incrementRef) {
         if (!this.isRunning) {
-            Logger.error("Tried getting world object on voxy instance but its not running");
+            Logger.error("Tried getting world object on foxy instance but its not running");
             return null;
         }
         var world = this.getNullable(identifier);
@@ -144,7 +144,7 @@ public abstract class VoxyInstance {
         long stamp = this.activeWorldLock.writeLock();
 
         if (!this.isRunning) {
-            Logger.error("Tried getting world object on voxy instance but its not running");
+            Logger.error("Tried getting world object on foxy instance but its not running");
             this.activeWorldLock.unlockWrite(stamp);
             return null;
         }
@@ -215,7 +215,7 @@ public abstract class VoxyInstance {
     }
 
     public void shutdown() {
-        Logger.info("Shutting down voxy instance");
+        Logger.info("Shutting down foxy instance");
         this.isRunning = false;
         try {
             this.worldCleaner.join();

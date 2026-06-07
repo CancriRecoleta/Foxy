@@ -35,7 +35,7 @@ void main() {
 
     vec3 point = rev3d(vec3(UV.xy, depth));
     depth = projDepth(point);
-    //TODO: HERE make an option/define to emit the output depth as something other then the input (i.e. if voxy is reverse z and vanilla isnt, transform and emit as not reverrse z)
+    //TODO: HERE make an option/define to emit the output depth as something other then the input (i.e. if foxy is reverse z and vanilla isnt, transform and emit as not reverrse z)
     depth = REDUCTION2(FAR+CLOSER_SIGN*(2.0f/((1<<24)-1)), depth);
     depth = NDC2SCREEN_DEPTH(depth);
 

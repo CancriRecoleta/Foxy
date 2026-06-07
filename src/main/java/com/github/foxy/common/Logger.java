@@ -1,6 +1,6 @@
 package com.github.foxy.common;
 
-import com.github.foxy.commonImpl.VoxyCommon;
+import com.github.foxy.commonImpl.FoxyCommon;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import org.slf4j.LoggerFactory;
@@ -13,7 +13,7 @@ public class Logger {
     public static boolean INSERT_CLASS = true;
     public static boolean SHUTUP = false;
     public static boolean SHUTUP_INFO = false;
-    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger("Voxy");
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger("Foxy");
 
 
     private static String callClsName() {
@@ -52,7 +52,7 @@ public class Logger {
 
         String error = (INSERT_CLASS?("["+callClsName()+"]: "):"") + Stream.of(args).map(Logger::objToString).collect(Collectors.joining(" "));
         LOGGER.error(error, throwable);
-        if (VoxyCommon.IS_IN_MINECRAFT && !VoxyCommon.IS_DEDICATED_SERVER) {
+        if (FoxyCommon.IS_IN_MINECRAFT && !FoxyCommon.IS_DEDICATED_SERVER) {
             showInHUD(error);//This is done so that on dedicated server, the Minecraft client class isnt loaded
         }
     }

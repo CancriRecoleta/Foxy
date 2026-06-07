@@ -1,23 +1,34 @@
 {
-  "foxy.options.page": "Foxy",
-  "foxy.options.enabled.name": "启用 Foxy",
-  "foxy.options.enabled.tooltip": "Foxy LOD 存储和渲染的总开关。",
-  "foxy.options.enable_rendering.name": "渲染远景 LOD",
-  "foxy.options.enable_rendering.tooltip": "独立于原版和 Embeddium 视距渲染 Foxy 低细节地形。",
-  "foxy.options.ingest_enabled.name": "摄取已加载区块",
-  "foxy.options.ingest_enabled.tooltip": "保存已加载的区块 section，供之后重建远景 LOD。",
-  "foxy.options.auto_backfill_singleplayer.name": "回填单人世界",
-  "foxy.options.auto_backfill_singleplayer.tooltip": "后台导入已有单人世界的 region 文件，让 LOD 不再只依赖原版已加载区块。",
-  "foxy.options.section_render_distance.name": "Foxy LOD 距离",
-  "foxy.options.section_render_distance.tooltip": "Foxy 顶层 LOD 单元半径；与原版和 Embeddium 视距分离。",
-  "foxy.options.section_render_distance.value": "%s 个 LOD 单元",
-  "foxy.options.vanilla_view_distance.name": "原版视距",
-  "foxy.options.vanilla_view_distance.tooltip": "设置 Minecraft 自身的视距（内圈完整细节区块）。修改会直接写入原版 options，Embeddium 的画质页面同步显示同一个值。",
-  "foxy.options.vanilla_view_distance.value": "%s 区块",
-  "foxy.options.service_threads.name": "Foxy 工作线程",
-  "foxy.options.service_threads.tooltip": "用于摄取、网格生成和存储任务的后台线程数量。",
-  "foxy.options.keep_embeddium_builder_threads.name": "保留 Embeddium 构建线程",
-  "foxy.options.keep_embeddium_builder_threads.tooltip": "启用后，Foxy 不会借用 Embeddium 区块构建线程容量。",
-  "foxy.options.debug_disable_vanilla_terrain.name": "[调试] 禁用原版地形",
-  "foxy.options.debug_disable_vanilla_terrain.tooltip": "让 Embeddium 不渲染原版区块，屏幕上只剩 Foxy LOD。仅用于诊断 LOD 是否在原版视距外仍被生成；正常游玩请关闭。"
+  "foxy.config.title": "Foxy",
+  "foxy.config.page": "设置",
+
+  "foxy.config.general": "常规",
+  "foxy.config.rendering": "渲染",
+
+  "foxy.config.general.enabled": "启用 Foxy",
+  "foxy.config.general.enabled.tooltip": "完全启用或禁用 Foxy。",
+
+  "foxy.config.general.serviceThreads": "服务线程",
+  "foxy.config.general.serviceThreads.tooltip": "Foxy 服务线程池可使用的线程数。",
+
+  "foxy.config.general.useSodiumBuilder": "使用 Embeddium 线程",
+  "foxy.config.general.useSodiumBuilder.tooltip": "将 Embeddium 的区块构建线程纳入 Foxy 线程池。可减少高渲染距离下快速移动时的卡顿。",
+
+  "foxy.config.general.ingest": "区块摄取",
+  "foxy.config.general.ingest.tooltip": "启用或禁用 Foxy 将已加载区块转换为 LOD 的能力。",
+
+  "foxy.config.general.rendering": "Foxy 渲染",
+  "foxy.config.general.rendering.tooltip": "启用或禁用 Foxy 渲染。",
+
+  "foxy.config.general.subDivisionSize": "细分大小（像素²）",
+  "foxy.config.general.subDivisionSize.tooltip": "细分为更小 LOD 之前，屏幕空间 AABB 的最大像素²尺寸。越小质量越高。",
+
+  "foxy.config.general.renderDistance": "渲染距离",
+  "foxy.config.general.renderDistance.tooltip": "Foxy 的渲染距离（单位：区块）。",
+
+  "foxy.config.general.environmental_fog": "环境雾",
+  "foxy.config.general.environmental_fog.tooltip": "启用或禁用 Foxy 的环境雾。启用 Iris 光影包时不可用。",
+
+  "foxy.config.general.ssao_mode": "SSAO 模式",
+  "foxy.config.general.ssao_mode.tooltip": "屏幕空间环境光遮蔽（SSAO）的模式。Auto 会在尽量减少性能影响的前提下自动选择最佳选项。启用 Iris 光影包时不可用。"
 }

@@ -2,7 +2,7 @@ package com.github.foxy.common.world;
 
 import com.github.foxy.common.voxelization.VoxelizedSection;
 import com.github.foxy.common.world.other.Mapper;
-import com.github.foxy.commonImpl.VoxyCommon;
+import com.github.foxy.commonImpl.FoxyCommon;
 
 import static com.github.foxy.common.world.WorldEngine.*;
 
@@ -13,7 +13,7 @@ public class WorldUpdater {
     public static void insertUpdate(WorldEngine into, VoxelizedSection section) {//TODO: add a bitset of levels to update and if it should force update
 
         //Do some very cheeky stuff for MiB
-        if (VoxyCommon.IS_MINE_IN_ABYSS) {
+        if (FoxyCommon.IS_MINE_IN_ABYSS) {
             int sector = (section.x+512)>>10;
             section.setPosition(section.x-(sector<<10), section.y+16+(256-32-sector*30), section.z);//Note sector size mult is 30 because the top chunk is replicated (and so is bottom chunk)
         }

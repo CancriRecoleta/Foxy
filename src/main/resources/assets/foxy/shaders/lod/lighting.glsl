@@ -1,5 +1,5 @@
-#ifndef _VOXY_LIGHTING_DECL
-#define _VOXY_LIGHTING_DECL
+#ifndef _FOXY_LIGHTING_DECL
+#define _FOXY_LIGHTING_DECL
 
 vec2 getLightmapUv(uint index) {
     vec2 base = vec2((index>>4)&0xFu, index&0xFu)/15;

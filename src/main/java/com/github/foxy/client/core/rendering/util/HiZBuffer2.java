@@ -21,11 +21,11 @@ import static org.lwjgl.opengl.GL45C.glTextureBarrier;
 
 public class HiZBuffer2 {
     private final Shader hizMip = Shader.make()
-            .add(ShaderType.COMPUTE, "voxy:hiz/hiz.comp")
+            .add(ShaderType.COMPUTE, "foxy:hiz/hiz.comp")
             .compile();
     private final Shader hizInitial = Shader.make()
-            .add(ShaderType.VERTEX, "voxy:hiz/blit.vsh")
-            .add(ShaderType.FRAGMENT, "voxy:hiz/blit.fsh")
+            .add(ShaderType.VERTEX, "foxy:hiz/blit.vsh")
+            .add(ShaderType.FRAGMENT, "foxy:hiz/blit.fsh")
             .define("OUTPUT_COLOUR")
             .compile();
     private final GlFramebuffer fb = new GlFramebuffer().name("HiZ");

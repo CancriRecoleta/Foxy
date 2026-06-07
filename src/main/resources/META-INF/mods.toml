@@ -7,6 +7,11 @@ authors = "${mod_authors}"
 modId = "${mod_id}"
 version = "${mod_version}"
 displayName = "${mod_name}"
+# Jar-root logo. Used both by Forge's mod list AND by Embeddium's options GUI: Embeddium's
+# TabHeaderWidget resolves a section's mod logo from this same logoFile (via the Forge ModContainer),
+# so the "Foxy" section in Video Settings shows this icon too.
+logoFile = "icon.png"
+logoBlur = false
 description = '''${mod_description}'''
 
 [[dependencies."${mod_id}"]]
@@ -24,7 +29,7 @@ ordering = "NONE"
 side = "BOTH"
 
 # Embeddium (Sodium fork for Forge 1.20.1). Mandatory on the client because
-# voxy's renderer is built on top of Sodium's RenderSection / RenderRegionManager.
+# foxy's renderer is built on top of Sodium's RenderSection / RenderRegionManager.
 [[dependencies."${mod_id}"]]
 modId = "embeddium"
 mandatory = false

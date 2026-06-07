@@ -1,6 +1,6 @@
 package com.github.foxy.common.util;
 
-import com.github.foxy.commonImpl.VoxyCommon;
+import com.github.foxy.commonImpl.FoxyCommon;
 import org.lwjgl.system.MemoryUtil;
 
 import java.nio.ByteBuffer;
@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class MemoryBuffer extends TrackedObject {
-    private static final boolean TRACK_MEMORY_BUFFERS = VoxyCommon.isVerificationFlagOn("trackBuffers");
+    private static final boolean TRACK_MEMORY_BUFFERS = FoxyCommon.isVerificationFlagOn("trackBuffers");
 
     public final long address;
     public final long size;

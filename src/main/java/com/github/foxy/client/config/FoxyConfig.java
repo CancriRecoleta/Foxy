@@ -6,7 +6,7 @@ import com.google.gson.GsonBuilder;
 import com.github.foxy.client.core.SSAO;
 import com.github.foxy.common.Logger;
 import com.github.foxy.common.util.cpu.CpuLayout;
-import com.github.foxy.commonImpl.VoxyCommon;
+import com.github.foxy.commonImpl.FoxyCommon;
 import net.minecraftforge.fml.loading.FMLPaths;
 
 import java.io.FileReader;
@@ -16,14 +16,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
 
-public class VoxyConfig {
+public class FoxyConfig {
     private static final Gson GSON = new GsonBuilder()
             .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
             .setPrettyPrinting()
             .excludeFieldsWithModifiers(Modifier.PRIVATE)
             .create();
 
-    public static VoxyConfig CONFIG = loadOrCreate();
+    public static FoxyConfig CONFIG = loadOrCreate();
 
     public boolean enabled = true;
     public boolean enableRendering = true;
@@ -47,28 +47,28 @@ public class VoxyConfig {
     }
 
 
-    private static VoxyConfig loadOrCreate() {
-        if (VoxyCommon.isAvailable()) {
+    private static FoxyConfig loadOrCreate() {
+        if (FoxyCommon.isAvailable()) {
             var path = getConfigPath();
             if (Files.exists(path)) {
                 try (FileReader reader = new FileReader(path.toFile())) {
-                    var conf = GSON.fromJson(reader, VoxyConfig.class);
+                    var conf = GSON.fromJson(reader, FoxyConfig.class);
                     if (conf != null) {
                         conf.save();
                         return conf;
                     } else {
-                        Logger.error("Failed to load voxy config, resetting");
+                        Logger.error("Failed to load foxy config, resetting");
                     }
                 } catch (IOException e) {
                     Logger.error("Could not parse config", e);
                 }
             }
             Logger.info("Config doesnt exist, creating new");
-            var config = new VoxyConfig();
+            var config = new FoxyConfig();
             config.save();
             return config;
         } else {
-            var config = new VoxyConfig();
+            var config = new FoxyConfig();
             config.enabled = false;
             config.enableRendering = false;
             return config;
@@ -76,8 +76,8 @@ public class VoxyConfig {
     }
 
     public void save() {
-        if (!VoxyCommon.isAvailable()) {
-            Logger.info("Not saving config since voxy is unavalible");
+        if (!FoxyCommon.isAvailable()) {
+            Logger.info("Not saving config since foxy is unavalible");
             return;
         }
 
@@ -95,6 +95,6 @@ public class VoxyConfig {
     }
 
     public boolean isRenderingEnabled() {
-        return VoxyCommon.isAvailable() && this.enabled && this.enableRendering;
+        return FoxyCommon.isAvailable() && this.enabled && this.enableRendering;
     }
 }

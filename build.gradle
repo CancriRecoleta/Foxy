@@ -140,6 +140,25 @@ repositories {
     maven { url = 'https://cursemaven.com' }              // CurseForge fallback (e.g. com.curseforge:project-id:fileid)
 }
 
+configurations {
+    // Holds the LWJGL extra modules (lmdb, zstd) plus their Windows natives so we can
+    // flatten them into the mod jar. Non-transitive: LWJGL core is provided by Minecraft.
+    lwjglExtras { transitive = false }
+
+    // Holds the plain runtime libraries (RocksDB, Jedis, LZ4, XZ, ...) that we flatten into
+    // the mod jar instead of nesting via Jar-in-Jar. They are NOT nested because ForgeGradle's
+    // dev run (runClient) never makes JarJar/runtime libraries reachable by the mod's own
+    // ModuleClassLoader, producing NoClassDefFoundError (e.g. org/rocksdb/RocksDBException) in
+    // the dev workspace. Flattening puts the classes/natives into the mod's own output, which is
+    // on MOD_CLASSES in dev and inside the jar in production. Transitive, but exclude the
+    // libraries Minecraft/Forge already provide so we don't ship duplicate copies.
+    embeddedLibs {
+        transitive = true
+        exclude group: 'com.google.code.gson'   // gson is provided by Minecraft
+        exclude group: 'org.slf4j'               // slf4j-api is provided by Minecraft
+    }
+}
+
 dependencies {
     // Specify the version of Minecraft to use.
     // Any artifact can be supplied so long as it has a "userdev" classifier artifact and is a compatible patcher artifact.
@@ -174,19 +193,67 @@ dependencies {
         jarJar.ranged(it, "[0.5.4,)")
     }
 
-    implementation "org.lwjgl:lwjgl-lmdb:3.3.1"
-    implementation "org.lwjgl:lwjgl-zstd:3.3.1"
-    runtimeOnly "org.lwjgl:lwjgl-lmdb:3.3.1:natives-windows"
-    runtimeOnly "org.lwjgl:lwjgl-zstd:3.3.1:natives-windows"
+    // LWJGL extra modules (lmdb, zstd) and their Windows natives.
+    //
+    // These are NOT embedded via Jar-in-Jar: Forge's JarJar identifies nested jars by
+    // module coordinate (group:artifact) and drops the classifier, so "org.lwjgl:lwjgl-lmdb"
+    // and "org.lwjgl:lwjgl-lmdb:natives-windows" collapse to a single entry. Gradle then
+    // embeds only one file while the generated metadata.json still lists both, leaving a
+    // dangling "lwjgl-lmdb-3.3.1-natives-windows.jar" reference that crashes mod loading with
+    // "Invalid paths argument, contained no existing paths". Instead we flatten the bindings
+    // and natives straight into the mod jar (see the extractLwjglExtras task below).
+    //
+    // transitive = false because LWJGL core (org.lwjgl.system.*) is already supplied by Minecraft.
+    implementation("org.lwjgl:lwjgl-lmdb:3.3.1") { transitive = false }
+    implementation("org.lwjgl:lwjgl-zstd:3.3.1") { transitive = false }
+    runtimeOnly("org.lwjgl:lwjgl-lmdb:3.3.1:natives-windows")
+    runtimeOnly("org.lwjgl:lwjgl-zstd:3.3.1:natives-windows")
 
-    // Storage/compression libraries are jar-in-jar'd (like upstream voxy bundles them) so they live
-    // in the Foxy module and are visible under Forge's module classloader in dev and production.
-    implementation(jarJar("redis.clients:jedis:5.1.0")) { jarJar.ranged(it, "[5.1.0,)") }
-    implementation(jarJar("org.rocksdb:rocksdbjni:10.2.1")) { jarJar.ranged(it, "[10.2.1,)") }
-    implementation(jarJar("org.apache.commons:commons-pool2:2.12.0")) { jarJar.ranged(it, "[2.12.0,)") }
-    implementation(jarJar("org.lz4:lz4-java:1.8.0")) { jarJar.ranged(it, "[1.8.0,)") }
-    implementation(jarJar("org.tukaani:xz:1.10")) { jarJar.ranged(it, "[1.10,)") }
+    // Same artifacts again, collected in a dedicated configuration so we can unpack them
+    // into the mod jar at build time (the bindings .class files and the windows/x64 DLLs).
+    lwjglExtras "org.lwjgl:lwjgl-lmdb:3.3.1"
+    lwjglExtras "org.lwjgl:lwjgl-zstd:3.3.1"
+    lwjglExtras "org.lwjgl:lwjgl-lmdb:3.3.1:natives-windows"
+    lwjglExtras "org.lwjgl:lwjgl-zstd:3.3.1:natives-windows"
+
+    // Plain runtime libraries. compileOnly provides them (and their transitives) on the compile
+    // classpath; the embeddedLibs configuration below unpacks them into the mod jar / dev output
+    // for runtime. They are intentionally NOT declared via jarJar (see the embeddedLibs comment).
+    compileOnly "redis.clients:jedis:5.1.0"
+    compileOnly "org.rocksdb:rocksdbjni:10.2.1"
+    compileOnly "org.apache.commons:commons-pool2:2.12.0"
+    compileOnly "org.lz4:lz4-java:1.8.0"
+    compileOnly "org.tukaani:xz:1.10"
+
+    embeddedLibs "redis.clients:jedis:5.1.0"          // pulls commons-pool2 + org.json transitively
+    embeddedLibs "org.rocksdb:rocksdbjni:10.2.1"
+    embeddedLibs "org.lz4:lz4-java:1.8.0"
+    embeddedLibs "org.tukaani:xz:1.10"
 }
+
+// Flatten the bundled libraries (LWJGL lmdb/zstd bindings + Windows natives, plus RocksDB,
+// Jedis, LZ4, XZ and their kept transitives) into the mod jar instead of nesting them via
+// Jar-in-Jar. Two reasons:
+//   1. JarJar collapses an artifact and its classifier variant (the LWJGL natives) to one
+//      module coordinate, leaving a dangling metadata entry that crashes production loading.
+//   2. In the dev workspace (runClient) JarJar/runtime libraries are never reachable by the
+//      mod's own ModuleClassLoader, so e.g. org.rocksdb.* throws NoClassDefFoundError.
+// Unpacking the classes and native libraries straight into the mod's output sidesteps both:
+// the content lives on MOD_CLASSES in dev and inside the jar in production, on the same
+// classloader as the mod, so LWJGL/RocksDB resolve their natives as ordinary classpath resources.
+def extractBundledLibs = tasks.register('extractBundledLibs', Copy) {
+    from { (configurations.lwjglExtras + configurations.embeddedLibs).collect { zipTree(it) } }
+    into layout.buildDirectory.dir('bundledLibs')
+    // Drop signatures, manifests and module descriptors so they don't clash inside the mod jar.
+    exclude 'META-INF/**'
+    exclude 'module-info.class'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+// Expose the unpacked content as an extra resource root so both the plain jar and the
+// jarJar ("-all") jar pick it up through processResources.
+sourceSets.main.resources.srcDir(layout.buildDirectory.dir('bundledLibs'))
+tasks.named('processResources').configure { dependsOn extractBundledLibs }
 
 // This block of code expands all declared replace properties in the specified resource targets.
 // A missing property will result in an error. Properties are expanded using ${} Groovy notation.

@@ -78,7 +78,7 @@ vec2 getBaseUV() {
 
 
 #ifdef PATCHED_SHADER
-struct VoxyFragmentParameters {
+struct FoxyFragmentParameters {
     //TODO: pass in derivative data
     vec4 sampledColour;
     vec2 tile;
@@ -90,7 +90,7 @@ struct VoxyFragmentParameters {
     uint customId;//Same as iris's modelId
 };
 
-void voxy_emitFragment(VoxyFragmentParameters parameters);
+void foxy_emitFragment(FoxyFragmentParameters parameters);
 #else
 
 vec4 computeColour(vec2 texturePos, vec4 colour) {
@@ -216,7 +216,7 @@ void main() {
 
     uint face = getFace();
     face ^= uint((face&1u)!=uint(gl_FrontFacing!=((face>>1)!=0u)));
-    voxy_emitFragment(VoxyFragmentParameters(colour, tile, texPos, face, modelId, getLightmapUv(interData.y), tint, model.customId));
+    foxy_emitFragment(FoxyFragmentParameters(colour, tile, texPos, face, modelId, getLightmapUv(interData.y), tint, model.customId));
 
     #endif
 }

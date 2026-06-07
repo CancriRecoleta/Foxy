@@ -1,8 +1,8 @@
 package com.github.foxy.client.mixin.iris;
 
-import com.github.foxy.client.config.VoxyConfig;
+import com.github.foxy.client.config.FoxyConfig;
 import com.github.foxy.client.core.util.IrisUtil;
-import com.github.foxy.client.iris.VoxyUniforms;
+import com.github.foxy.client.iris.FoxyUniforms;
 import net.irisshaders.iris.gl.uniform.UniformHolder;
 import net.irisshaders.iris.shaderpack.IdMap;
 import net.irisshaders.iris.shaderpack.properties.PackDirectives;
@@ -16,9 +16,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(value = CommonUniforms.class, remap = false)
 public class MixinMatrixUniforms {
     @Inject(method = "addNonDynamicUniforms", at = @At("HEAD"))//Am so angry ims this is what IS REQUIRED TODO, because we need to override the uniforms of dh
-    private static void voxy$InjectMatrixUniforms(UniformHolder uniforms, IdMap idMap, PackDirectives directives, FrameUpdateNotifier updateNotifier, CallbackInfo ci) {
-        if (VoxyConfig.CONFIG.isRenderingEnabled() && IrisUtil.SHADER_SUPPORT) {
-            VoxyUniforms.addUniforms(uniforms);
+    private static void foxy$InjectMatrixUniforms(UniformHolder uniforms, IdMap idMap, PackDirectives directives, FrameUpdateNotifier updateNotifier, CallbackInfo ci) {
+        if (FoxyConfig.CONFIG.isRenderingEnabled() && IrisUtil.SHADER_SUPPORT) {
+            FoxyUniforms.addUniforms(uniforms);
         }
     }
 }

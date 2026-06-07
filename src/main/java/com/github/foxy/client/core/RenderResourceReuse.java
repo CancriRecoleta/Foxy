@@ -9,7 +9,7 @@ import com.github.foxy.client.core.rendering.section.geometry.IGeometryData;
 import com.github.foxy.common.Logger;
 import com.github.foxy.common.util.ThreadUtils;
 import com.github.foxy.common.util.TrackedObject;
-import com.github.foxy.commonImpl.VoxyCommon;
+import com.github.foxy.commonImpl.FoxyCommon;
 
 import java.util.ArrayList;
 
@@ -123,7 +123,7 @@ public class RenderResourceReuse {
         }
         //geometryCapacity = 1<<28;
         //geometryCapacity = 1<<30;//1GB test
-        var override = System.getProperty("voxy.geometryBufferSizeOverrideMB", "");
+        var override = System.getProperty("foxy.geometryBufferSizeOverrideMB", "");
         if (!override.isEmpty()) {
             geometryCapacity = Long.parseLong(override)*1024L*1024L;
         }

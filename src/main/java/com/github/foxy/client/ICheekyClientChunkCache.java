@@ -5,5 +5,5 @@ import org.jetbrains.annotations.Nullable;
 
 public interface ICheekyClientChunkCache {
     @Nullable
-    LevelChunk voxy$cheekyGetChunk(int x, int z);
+    LevelChunk foxy$cheekyGetChunk(int x, int z);
 }

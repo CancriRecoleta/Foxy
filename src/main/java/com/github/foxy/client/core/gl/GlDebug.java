@@ -5,7 +5,7 @@ import com.github.foxy.client.core.gl.shader.Shader;
 import static org.lwjgl.opengl.GL43C.*;
 
 public class GlDebug {
-    public static final boolean GL_DEBUG = System.getProperty("voxy.glDebug", "false").equals("true");
+    public static final boolean GL_DEBUG = System.getProperty("foxy.glDebug", "false").equals("true");
 
 
     public static void push() {

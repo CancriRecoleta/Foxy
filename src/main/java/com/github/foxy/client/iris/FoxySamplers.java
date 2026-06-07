@@ -5,7 +5,7 @@ import net.irisshaders.iris.gl.sampler.SamplerHolder;
 import net.irisshaders.iris.gl.texture.TextureType;
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
 
-public class VoxySamplers {
+public class FoxySamplers {
     // Oculus's SamplerHolder.addDynamicSampler takes a GlSampler instance (not a Supplier), and
     // GlSampler has no predefined MIPPED_NEAREST_NEAREST constant, so build one lazily and reuse it:
     // nearest filtering with mipmapping enabled (GlSampler(linear=false, mipmapped=true, ...)).
@@ -18,7 +18,7 @@ public class VoxySamplers {
     }
 
     public static void addSamplers(IrisRenderingPipeline pipeline, SamplerHolder samplers) {
-        var patchData = ((IGetVoxyPatchData)pipeline).voxy$getPatchData();
+        var patchData = ((IGetFoxyPatchData)pipeline).foxy$getPatchData();
         if (patchData != null) {
             String[] opaqueNames = new String[]{"vxDepthTexOpaque"};
             String[] translucentNames = new String[]{"vxDepthTexTrans"};
@@ -30,7 +30,7 @@ public class VoxySamplers {
 
             //TODO replace ()->0 with the actual depth texture id
             samplers.addDynamicSampler(TextureType.TEXTURE_2D, () -> {
-                var pipeData = ((IGetIrisVoxyPipelineData)pipeline).voxy$getPipelineData();
+                var pipeData = ((IGetIrisFoxyPipelineData)pipeline).foxy$getPipelineData();
                 if (pipeData == null) {
                     return 0;
                 }
@@ -47,7 +47,7 @@ public class VoxySamplers {
             }, mippedNearest(), opaqueNames);
 
             samplers.addDynamicSampler(TextureType.TEXTURE_2D, () -> {
-                var pipeData = ((IGetIrisVoxyPipelineData)pipeline).voxy$getPipelineData();
+                var pipeData = ((IGetIrisFoxyPipelineData)pipeline).foxy$getPipelineData();
                 if (pipeData == null) {
                     return 0;
                 }

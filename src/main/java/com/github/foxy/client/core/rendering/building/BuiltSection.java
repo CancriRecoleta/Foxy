@@ -1,13 +1,13 @@
 package com.github.foxy.client.core.rendering.building;
 
 import com.github.foxy.common.util.MemoryBuffer;
-import com.github.foxy.commonImpl.VoxyCommon;
+import com.github.foxy.commonImpl.FoxyCommon;
 
 import java.util.Arrays;
 
 //TODO: also have an AABB size stored
 public final class BuiltSection {
-    public static final boolean VERIFY_BUILT_SECTION_OFFSETS = VoxyCommon.isVerificationFlagOn("verifyBuiltSectionOffsets");
+    public static final boolean VERIFY_BUILT_SECTION_OFFSETS = FoxyCommon.isVerificationFlagOn("verifyBuiltSectionOffsets");
     public final long position;
     public final byte childExistence;
     public final int aabb;

@@ -2,7 +2,7 @@ package com.github.foxy.client.core.model;
 
 
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
-import com.github.foxy.client.VoxyClient;
+import com.github.foxy.client.FoxyClient;
 import com.github.foxy.common.Logger;
 import com.github.foxy.common.world.other.Mapper;
 import java.util.List;

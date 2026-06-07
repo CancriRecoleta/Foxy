@@ -4,7 +4,7 @@ import com.github.foxy.common.Logger;
 import com.github.foxy.common.config.section.SectionStorage;
 import com.github.foxy.common.util.TrackedObject;
 import com.github.foxy.common.world.other.Mapper;
-import com.github.foxy.commonImpl.VoxyInstance;
+import com.github.foxy.commonImpl.FoxyInstance;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.invoke.VarHandle;
@@ -42,7 +42,7 @@ public class WorldEngine {
     public Mapper getMapper() {return this.mapper;}
     public boolean isLive() {return this.isLive;}
 
-    public final @Nullable VoxyInstance instanceIn;
+    public final @Nullable FoxyInstance instanceIn;
     private final AtomicInteger refCount = new AtomicInteger();
     volatile long lastActiveTime = System.currentTimeMillis();//Time in millis the world was last "active" i.e. had a total ref count or active section count of != 0
 
@@ -50,7 +50,7 @@ public class WorldEngine {
         this(storage, null);
     }
 
-    public WorldEngine(SectionStorage storage, @Nullable VoxyInstance instance) {
+    public WorldEngine(SectionStorage storage, @Nullable FoxyInstance instance) {
         this.instanceIn = instance;
 
         int cacheSize = 1024;

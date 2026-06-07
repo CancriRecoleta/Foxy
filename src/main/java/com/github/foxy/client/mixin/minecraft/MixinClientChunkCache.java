@@ -1,7 +1,7 @@
 package com.github.foxy.client.mixin.minecraft;
 
 import com.github.foxy.client.ICheekyClientChunkCache;
-import com.github.foxy.client.config.VoxyConfig;
+import com.github.foxy.client.config.FoxyConfig;
 import com.github.foxy.common.world.service.VoxelIngestService;
 import net.minecraftforge.fml.ModList;
 import net.minecraft.client.multiplayer.ClientChunkCache;
@@ -23,7 +23,7 @@ public class MixinClientChunkCache implements ICheekyClientChunkCache {
     @Shadow volatile ClientChunkCache.Storage storage;
 
     @Override
-    public @Nullable LevelChunk voxy$cheekyGetChunk(int x, int z) {
+    public @Nullable LevelChunk foxy$cheekyGetChunk(int x, int z) {
         //This doesnt do the in range check stuff, it just gets the chunk at all costs
         var chunk = this.storage.getChunk(this.storage.getIndex(x, z));
         if (chunk == null) {
@@ -39,9 +39,9 @@ public class MixinClientChunkCache implements ICheekyClientChunkCache {
 
     // 1.20.1 ClientChunkCache.drop takes (int x, int z) rather than a ChunkPos.
     @Inject(method = "drop", at = @At("HEAD"))
-    public void voxy$captureChunkBeforeUnload(int x, int z, CallbackInfo ci) {
-        if (VoxyConfig.CONFIG.ingestEnabled && BOBBY_INSTALLED) {
-            var chunk = this.voxy$cheekyGetChunk(x, z);
+    public void foxy$captureChunkBeforeUnload(int x, int z, CallbackInfo ci) {
+        if (FoxyConfig.CONFIG.ingestEnabled && BOBBY_INSTALLED) {
+            var chunk = this.foxy$cheekyGetChunk(x, z);
             if (chunk != null) {
                 VoxelIngestService.tryAutoIngestChunk(chunk);
             }

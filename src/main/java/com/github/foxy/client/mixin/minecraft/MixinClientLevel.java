@@ -1,9 +1,9 @@
 package com.github.foxy.client.mixin.minecraft;
 
-import com.github.foxy.client.config.VoxyConfig;
+import com.github.foxy.client.config.FoxyConfig;
 import com.github.foxy.common.world.service.VoxelIngestService;
-import com.github.foxy.commonImpl.VoxyCommon;
-import com.github.foxy.commonImpl.VoxyInstance;
+import com.github.foxy.commonImpl.FoxyCommon;
+import com.github.foxy.commonImpl.FoxyInstance;
 import com.github.foxy.commonImpl.WorldIdentifier;
 import net.minecraft.client.multiplayer.ClientChunkCache;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -37,7 +37,7 @@ public abstract class MixinClientLevel {
     @Shadow public abstract ClientChunkCache getChunkSource();
 
     @Inject(method = "<init>", at = @At("TAIL"))
-    private void voxy$getBottom(
+    private void foxy$getBottom(
             ClientPacketListener networkHandler,
             ClientLevel.ClientLevelData properties,
             ResourceKey<Level> registryRef,
@@ -53,14 +53,14 @@ public abstract class MixinClientLevel {
     }
 
     @Inject(method = "setBlocksDirty", at = @At("TAIL"))
-    private void voxy$injectIngestOnStateChange(BlockPos pos, BlockState old, BlockState updated, CallbackInfo cir) {
+    private void foxy$injectIngestOnStateChange(BlockPos pos, BlockState old, BlockState updated, CallbackInfo cir) {
         if (old == updated) return;
 
         //TODO: is this _really_ needed, we should have enough processing power to not need todo it if its only a
         // block removal
         if (!updated.isAir()) return;
-        if (VoxyCommon.getInstance()==null) return;
-        if (!VoxyConfig.CONFIG.ingestEnabled) return;//Only ingest if setting enabled
+        if (FoxyCommon.getInstance()==null) return;
+        if (!FoxyConfig.CONFIG.ingestEnabled) return;//Only ingest if setting enabled
 
         var self = (Level)(Object)this;
         var wi = WorldIdentifier.of(self);
@@ -73,7 +73,7 @@ public abstract class MixinClientLevel {
         int z = pos.getZ()&15;
         if (x == 0 || x==15 || y==0 || y==15 || z==0||z==15) {//Update if there is a statechange on the boarder
             var csp = SectionPos.of(pos);
-            //Is not using voxy$cheekyGetChunk as dont think is need
+            //Is not using foxy$cheekyGetChunk as dont think is need
             var chunk = self.getChunk(pos.getX()>>4, pos.getZ()>>4, ChunkStatus.FULL, false);
             if (chunk != null) {
                 var section = chunk.getSection(csp.y() - this.bottomSectionY);

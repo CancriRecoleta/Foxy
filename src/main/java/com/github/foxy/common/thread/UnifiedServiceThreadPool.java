@@ -17,7 +17,7 @@ public class UnifiedServiceThreadPool {
     private int threadId = 0;
 
     public UnifiedServiceThreadPool() {
-        this.dedicatedPool = new ThreadGroup("Voxy Dedicated Service");
+        this.dedicatedPool = new ThreadGroup("Foxy Dedicated Service");
         this.serviceManager = new ServiceManager(this::release);
         this.groupSemaphore = new MultiThreadPrioritySemaphore(this.serviceManager::tryRunAJob);
 
@@ -34,7 +34,7 @@ public class UnifiedServiceThreadPool {
                 this.selfBlock.release(-diff);
             } else {//Add threads
                 for (int i = 0; i < diff; i++) {
-                    var t = new Thread(this.dedicatedPool, this::workerThread, "Dedicated Voxy Worker #"+(this.threadId++));
+                    var t = new Thread(this.dedicatedPool, this::workerThread, "Dedicated Foxy Worker #"+(this.threadId++));
                     t.setPriority(3);
                     t.setDaemon(true);
                     this.threads.add(t);

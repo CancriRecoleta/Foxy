@@ -1,7 +1,7 @@
 package com.github.foxy.common.util;
 
 import com.github.foxy.common.Logger;
-import com.github.foxy.commonImpl.VoxyCommon;
+import com.github.foxy.commonImpl.FoxyCommon;
 
 import java.lang.ref.Cleaner;
 
@@ -9,8 +9,8 @@ import static com.github.foxy.common.util.GlobalCleaner.CLEANER;
 
 public abstract class TrackedObject {
     //TODO: maybe make this false? for performance overhead?
-    public static final boolean TRACK_OBJECT_ALLOCATIONS = VoxyCommon.isVerificationFlagOn("ensureTrackedObjectsAreFreed", true);
-    public static final boolean TRACK_OBJECT_ALLOCATION_STACKS = VoxyCommon.isVerificationFlagOn("trackObjectAllocationStacks");
+    public static final boolean TRACK_OBJECT_ALLOCATIONS = FoxyCommon.isVerificationFlagOn("ensureTrackedObjectsAreFreed", true);
+    public static final boolean TRACK_OBJECT_ALLOCATION_STACKS = FoxyCommon.isVerificationFlagOn("trackObjectAllocationStacks");
 
     private final Ref ref;
     protected TrackedObject() {

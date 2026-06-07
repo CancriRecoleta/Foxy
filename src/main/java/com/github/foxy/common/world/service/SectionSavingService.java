@@ -33,7 +33,7 @@ public class SectionSavingService {
                 task.engine.storage.saveSection(section);
             }
         } catch (Exception e) {
-            Logger.error("Voxy saver had an exception while executing please check logs and report error", e);
+            Logger.error("Foxy saver had an exception while executing please check logs and report error", e);
         }
         section.release();
     }
@@ -82,7 +82,7 @@ public class SectionSavingService {
 
     public void shutdown() {
         if (this.service.numJobs() != 0) {
-            Logger.error("Voxy section saving still in progress, estimated " + this.service.numJobs() + " sections remaining.");
+            Logger.error("Foxy section saving still in progress, estimated " + this.service.numJobs() + " sections remaining.");
             this.service.blockTillEmpty();
         }
         this.service.shutdown();

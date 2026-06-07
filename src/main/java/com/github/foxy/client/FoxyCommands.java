@@ -6,9 +6,9 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
-import com.github.foxy.client.core.IGetVoxyRenderSystem;
+import com.github.foxy.client.core.IGetFoxyRenderSystem;
 import com.github.foxy.common.DebugUtils;
-import com.github.foxy.commonImpl.VoxyCommon;
+import com.github.foxy.commonImpl.FoxyCommon;
 import com.github.foxy.commonImpl.WorldIdentifier;
 import com.github.foxy.commonImpl.importers.DHImporter;
 import com.github.foxy.commonImpl.importers.WorldImporter;
@@ -28,30 +28,30 @@ import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 
 
-public class VoxyCommands {
+public class FoxyCommands {
 
     public static LiteralArgumentBuilder<CommandSourceStack> register() {
         var imports = Commands.literal("import")
                 .then(Commands.literal("world")
                         .then(Commands.argument("world_name", StringArgumentType.string())
-                                .suggests(VoxyCommands::importWorldSuggester)
-                                .executes(VoxyCommands::importWorld)))
+                                .suggests(FoxyCommands::importWorldSuggester)
+                                .executes(FoxyCommands::importWorld)))
                 .then(Commands.literal("bobby")
                         .then(Commands.argument("world_name", StringArgumentType.string())
-                                .suggests(VoxyCommands::importBobbySuggester)
-                                .executes(VoxyCommands::importBobby)))
+                                .suggests(FoxyCommands::importBobbySuggester)
+                                .executes(FoxyCommands::importBobby)))
                 .then(Commands.literal("raw")
                         .then(Commands.argument("path", StringArgumentType.string())
-                                .executes(VoxyCommands::importRaw)))
+                                .executes(FoxyCommands::importRaw)))
                 .then(Commands.literal("zip")
                         .then(Commands.argument("zipPath", StringArgumentType.string())
-                                .executes(VoxyCommands::importZip)
+                                .executes(FoxyCommands::importZip)
                                 .then(Commands.argument("innerPath", StringArgumentType.string())
-                                        .executes(VoxyCommands::importZip))))
+                                        .executes(FoxyCommands::importZip))))
                 .then(Commands.literal("current")
-                        .executes(VoxyCommands::importCurrentWorldIn))
+                        .executes(FoxyCommands::importCurrentWorldIn))
                 .then(Commands.literal("cancel")
-                        .executes(VoxyCommands::cancelImport));
+                        .executes(FoxyCommands::cancelImport));
 
         // Distant Horizons import needs the optional xz/sqlite-jdbc libraries. Loading DHImporter
         // pulls in org.tukaani.xz types, so guard against a NoClassDefFoundError when those libs are
@@ -66,7 +66,7 @@ public class VoxyCommands {
             imports = imports
                     .then(Commands.literal("distant_horizons")
                     .then(Commands.argument("sqlDbPath", StringArgumentType.string())
-                            .executes(VoxyCommands::importDistantHorizons)));
+                            .executes(FoxyCommands::importDistantHorizons)));
         }
 
         var debug = Commands.literal("debug")
@@ -76,27 +76,27 @@ public class VoxyCommands {
                                 .executes(ctx->verifyTLNs(ctx, BoolArgumentType.getBool(ctx, "attemptRepair"))))
                 );
 
-        return Commands.literal("foxy")//.requires((ctx)-> VoxyCommon.getInstance() != null)
+        return Commands.literal("foxy")//.requires((ctx)-> FoxyCommon.getInstance() != null)
                 .then(Commands.literal("reload")
-                        .executes(VoxyCommands::reloadInstance))
+                        .executes(FoxyCommands::reloadInstance))
                 .then(imports)
                 .then(debug);
     }
 
     private static int reloadInstance(CommandContext<CommandSourceStack> ctx) {
-        var instance = (VoxyClientInstance)VoxyCommon.getInstance();
+        var instance = (FoxyClientInstance)FoxyCommon.getInstance();
         if (instance == null) {
             ctx.getSource().sendFailure(Component.translatable("Foxy must be enabled in settings to use this"));
             return 1;
         }
         var wr = Minecraft.getInstance().levelRenderer;
         if (wr!=null) {
-            ((IGetVoxyRenderSystem)wr).voxy$shutdownRenderer();
+            ((IGetFoxyRenderSystem)wr).foxy$shutdownRenderer();
         }
 
-        VoxyCommon.shutdownInstance();
+        FoxyCommon.shutdownInstance();
         System.gc();
-        VoxyCommon.createInstance();
+        FoxyCommon.createInstance();
 
         var r = Minecraft.getInstance().levelRenderer;
         if (r != null) r.allChanged();
@@ -104,7 +104,7 @@ public class VoxyCommands {
     }
 
     private static int verifyTLNs(CommandContext<CommandSourceStack> ctx, boolean attemptRepair) {
-        var instance = VoxyCommon.getInstance();
+        var instance = FoxyCommon.getInstance();
         if (instance == null) {
             ctx.getSource().sendFailure(Component.translatable("Foxy must be enabled in settings to use this"));
             return 1;
@@ -118,7 +118,7 @@ public class VoxyCommands {
 
 
     private static int importDistantHorizons(CommandContext<CommandSourceStack> ctx) {
-        var instance = (VoxyClientInstance)VoxyCommon.getInstance();
+        var instance = (FoxyClientInstance)FoxyCommon.getInstance();
         if (instance == null) {
             ctx.getSource().sendFailure(Component.translatable("Foxy must be enabled in settings to use this"));
             return 1;
@@ -142,7 +142,7 @@ public class VoxyCommands {
     }
 
     private static boolean fileBasedImporter(File directory) {
-        var instance = (VoxyClientInstance)VoxyCommon.getInstance();
+        var instance = (FoxyClientInstance)FoxyCommon.getInstance();
         if (instance == null) {
             return false;
         }
@@ -157,7 +157,7 @@ public class VoxyCommands {
     }
 
     private static int importRaw(CommandContext<CommandSourceStack> ctx) {
-        if (VoxyCommon.getInstance() == null) {
+        if (FoxyCommon.getInstance() == null) {
             ctx.getSource().sendFailure(Component.translatable("Foxy must be enabled in settings to use this"));
             return 1;
         }
@@ -166,7 +166,7 @@ public class VoxyCommands {
     }
 
     private static int importBobby(CommandContext<CommandSourceStack> ctx) {
-        if (VoxyCommon.getInstance() == null) {
+        if (FoxyCommon.getInstance() == null) {
             ctx.getSource().sendFailure(Component.translatable("Foxy must be enabled in settings to use this"));
             return 1;
         }
@@ -226,7 +226,7 @@ public class VoxyCommands {
 
 
     private static int importCurrentWorldIn(CommandContext<CommandSourceStack> ctx) {
-        if (VoxyCommon.getInstance() == null) {
+        if (FoxyCommon.getInstance() == null) {
             ctx.getSource().sendFailure(Component.translatable("Foxy must be enabled in settings to use this"));
             return 1;
         }
@@ -245,7 +245,7 @@ public class VoxyCommands {
     }
 
     private static int importWorld(CommandContext<CommandSourceStack> ctx) {
-        if (VoxyCommon.getInstance() == null) {
+        if (FoxyCommon.getInstance() == null) {
             ctx.getSource().sendFailure(Component.translatable("Foxy must be enabled in settings to use this"));
             return 1;
         }
@@ -290,7 +290,7 @@ public class VoxyCommands {
             innerDir = ctx.getArgument("innerPath", String.class);
         } catch (Exception e) {}
 
-        var instance = (VoxyClientInstance)VoxyCommon.getInstance();
+        var instance = (FoxyClientInstance)FoxyCommon.getInstance();
         if (instance == null) {
             ctx.getSource().sendFailure(Component.translatable("Foxy must be enabled in settings to use this"));
             return 1;
@@ -309,7 +309,7 @@ public class VoxyCommands {
     }
 
     private static int cancelImport(CommandContext<CommandSourceStack> ctx) {
-        var instance = (VoxyClientInstance)VoxyCommon.getInstance();
+        var instance = (FoxyClientInstance)FoxyCommon.getInstance();
         if (instance == null) {
             ctx.getSource().sendFailure(Component.translatable("Foxy must be enabled in settings to use this"));
             return 1;

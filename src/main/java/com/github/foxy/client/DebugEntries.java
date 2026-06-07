@@ -1,8 +1,8 @@
 package com.github.foxy.client;
 
-import com.github.foxy.client.core.IGetVoxyRenderSystem;
-import com.github.foxy.client.core.VoxyRenderSystem;
-import com.github.foxy.commonImpl.VoxyCommon;
+import com.github.foxy.client.core.IGetFoxyRenderSystem;
+import com.github.foxy.client.core.FoxyRenderSystem;
+import com.github.foxy.commonImpl.FoxyCommon;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 
@@ -17,21 +17,21 @@ public class DebugEntries {
 
     // Appends Foxy's diagnostic lines to the F3 overlay. Called from the DebugScreenOverlay mixin.
     public static void appendDebugLines(List<String> lines) {
-        if (!VoxyCommon.isAvailable()) {
-            lines.add(ChatFormatting.RED + "foxy-" + VoxyCommon.MOD_VERSION);//Foxy installed, not available
+        if (!FoxyCommon.isAvailable()) {
+            lines.add(ChatFormatting.RED + "foxy-" + FoxyCommon.MOD_VERSION);//Foxy installed, not available
             return;
         }
-        var instance = VoxyCommon.getInstance();
+        var instance = FoxyCommon.getInstance();
         if (instance == null) {
-            lines.add(ChatFormatting.YELLOW + "foxy-" + VoxyCommon.MOD_VERSION);//Foxy available, no instance active
+            lines.add(ChatFormatting.YELLOW + "foxy-" + FoxyCommon.MOD_VERSION);//Foxy available, no instance active
             return;
         }
 
-        VoxyRenderSystem vrs = null;
+        FoxyRenderSystem vrs = null;
         var wr = Minecraft.getInstance().levelRenderer;
-        if (wr != null) vrs = ((IGetVoxyRenderSystem) wr).voxy$getRenderSystem();
+        if (wr != null) vrs = ((IGetFoxyRenderSystem) wr).foxy$getRenderSystem();
 
-        lines.add((vrs == null ? ChatFormatting.DARK_GREEN : ChatFormatting.GREEN) + "foxy-" + VoxyCommon.MOD_VERSION);
+        lines.add((vrs == null ? ChatFormatting.DARK_GREEN : ChatFormatting.GREEN) + "foxy-" + FoxyCommon.MOD_VERSION);
         instance.addDebug(lines);
         if (vrs != null) {
             vrs.addDebugInfo(lines);

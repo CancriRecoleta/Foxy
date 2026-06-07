@@ -1,23 +1,34 @@
 {
-  "foxy.options.page": "Foxy",
-  "foxy.options.enabled.name": "Enable Foxy",
-  "foxy.options.enabled.tooltip": "Master switch for Foxy LOD storage and rendering.",
-  "foxy.options.enable_rendering.name": "Render distant LOD",
-  "foxy.options.enable_rendering.tooltip": "Draw Foxy low-detail terrain independently from vanilla render distance.",
-  "foxy.options.ingest_enabled.name": "Ingest loaded chunks",
-  "foxy.options.ingest_enabled.tooltip": "Store loaded chunk sections so distant LOD can be rebuilt later.",
-  "foxy.options.auto_backfill_singleplayer.name": "Backfill singleplayer worlds",
-  "foxy.options.auto_backfill_singleplayer.tooltip": "Import existing singleplayer region files in the background so LOD is not limited to chunks loaded by vanilla.",
-  "foxy.options.section_render_distance.name": "Foxy LOD distance",
-  "foxy.options.section_render_distance.tooltip": "Radius of Foxy top-level LOD cells. This is separate from vanilla/Embeddium render distance.",
-  "foxy.options.section_render_distance.value": "%s LOD cells",
-  "foxy.options.vanilla_view_distance.name": "Vanilla view distance",
-  "foxy.options.vanilla_view_distance.tooltip": "Sets Minecraft's own render distance (the inner ring of fully-detailed chunks). Edits are written straight into Minecraft's options, so Embeddium's Quality page reflects the same value.",
-  "foxy.options.vanilla_view_distance.value": "%s chunks",
-  "foxy.options.service_threads.name": "Foxy worker threads",
-  "foxy.options.service_threads.tooltip": "Background workers used for ingest, mesh generation, and storage tasks.",
-  "foxy.options.keep_embeddium_builder_threads.name": "Keep Embeddium builder threads",
-  "foxy.options.keep_embeddium_builder_threads.tooltip": "When enabled, Foxy does not borrow Embeddium chunk builder thread capacity.",
-  "foxy.options.debug_disable_vanilla_terrain.name": "[Debug] Disable vanilla terrain",
-  "foxy.options.debug_disable_vanilla_terrain.tooltip": "Suppresses Embeddium's chunk rendering so only Foxy LOD remains visible. Diagnostic only — used to confirm whether the LOD output exists past vanilla view distance. Leave off for normal play."
+  "foxy.config.title": "Foxy",
+  "foxy.config.page": "Settings",
+
+  "foxy.config.general": "General",
+  "foxy.config.rendering": "Rendering",
+
+  "foxy.config.general.enabled": "Enable Foxy",
+  "foxy.config.general.enabled.tooltip": "Fully enables or disables Foxy.",
+
+  "foxy.config.general.serviceThreads": "Service threads",
+  "foxy.config.general.serviceThreads.tooltip": "Number of threads Foxy's service thread pool may use.",
+
+  "foxy.config.general.useSodiumBuilder": "Use Embeddium threads",
+  "foxy.config.general.useSodiumBuilder.tooltip": "Borrow Embeddium's chunk builder threads as part of Foxy's thread pool. Can reduce stuttering when moving quickly at high render distance.",
+
+  "foxy.config.general.ingest": "Chunk ingest",
+  "foxy.config.general.ingest.tooltip": "Enables or disables Foxy's ability to convert loaded chunks into LODs.",
+
+  "foxy.config.general.rendering": "Foxy rendering",
+  "foxy.config.general.rendering.tooltip": "Enables or disables Foxy rendering.",
+
+  "foxy.config.general.subDivisionSize": "Subdivision size (pixels²)",
+  "foxy.config.general.subDivisionSize.tooltip": "Maximum screen-space AABB size in pixels² before subdividing into smaller LODs. Smaller = higher quality.",
+
+  "foxy.config.general.renderDistance": "Render distance",
+  "foxy.config.general.renderDistance.tooltip": "Foxy's render distance, in chunks.",
+
+  "foxy.config.general.environmental_fog": "Environmental fog",
+  "foxy.config.general.environmental_fog.tooltip": "Enables or disables Foxy's environmental fog. Disabled while an Iris shader pack is active.",
+
+  "foxy.config.general.ssao_mode": "SSAO mode",
+  "foxy.config.general.ssao_mode.tooltip": "Mode used for screen-space ambient occlusion. Auto picks the best option while limiting the performance impact. Disabled while an Iris shader pack is active."
 }

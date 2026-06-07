@@ -1,6 +1,6 @@
 package com.github.foxy.client.mixin.iris;
 
-import com.github.foxy.client.core.IGetVoxyRenderSystem;
+import com.github.foxy.client.core.IGetFoxyRenderSystem;
 import com.github.foxy.client.core.util.FogParameters;
 import com.github.foxy.client.core.util.IrisUtil;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -30,7 +30,7 @@ public class MixinLevelRenderer {
     @Shadow @Final private Minecraft minecraft;
 
     @Inject(method = "renderLevel", at = @At("HEAD"))
-    private void voxy$injectIrisCompat(
+    private void foxy$injectIrisCompat(
             PoseStack poseStack,
             float partialTick,
             long finishNanoTime,
@@ -41,7 +41,7 @@ public class MixinLevelRenderer {
             Matrix4f projectionMatrix,
             CallbackInfo ci) {
         if (IrisUtil.irisShaderPackEnabled()) {
-            var renderer = ((IGetVoxyRenderSystem) this).voxy$getRenderSystem();
+            var renderer = ((IGetFoxyRenderSystem) this).foxy$getRenderSystem();
             if (renderer != null) {
                 //Fix the viewport dims that the shader pipeline may have left scaled.
                 glViewport(0, 0, Minecraft.getInstance().getMainRenderTarget().width, Minecraft.getInstance().getMainRenderTarget().height);

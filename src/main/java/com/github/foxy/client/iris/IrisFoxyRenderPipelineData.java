@@ -6,7 +6,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectFunction;
 import kroppeb.stareval.function.FunctionReturn;
 import kroppeb.stareval.function.Type;
-import com.github.foxy.client.core.IrisVoxyRenderPipeline;
+import com.github.foxy.client.core.IrisFoxyRenderPipeline;
 import com.github.foxy.client.core.rendering.util.LightMapHelper;
 import com.github.foxy.client.mixin.iris.CustomUniformsAccessor;
 import com.github.foxy.client.mixin.iris.IrisRenderingPipelineAccessor;
@@ -38,8 +38,8 @@ import static org.lwjgl.opengl.ARBUniformBufferObject.glBindBufferBase;
 import static org.lwjgl.opengl.GL33C.glBindSampler;
 import static org.lwjgl.opengl.GL43C.GL_SHADER_STORAGE_BUFFER;
 
-public class IrisVoxyRenderPipelineData {
-    public IrisVoxyRenderPipeline thePipeline;
+public class IrisFoxyRenderPipelineData {
+    public IrisFoxyRenderPipeline thePipeline;
     public final int[] opaqueDrawTargets;
     public final int[] translucentDrawTargets;
     private final String opaquePatch;
@@ -55,7 +55,7 @@ public class IrisVoxyRenderPipelineData {
     public final boolean deferTranslucency;
     public boolean skipShaderDepthHackFix;
 
-    private IrisVoxyRenderPipelineData(IrisShaderPatch patch, int[] opaqueDrawTargets, int[] translucentDrawTargets, StructLayout uniformSet, Runnable blendingSetup, ImageSet imageSet, SSBOSet ssboSet) {
+    private IrisFoxyRenderPipelineData(IrisShaderPatch patch, int[] opaqueDrawTargets, int[] translucentDrawTargets, StructLayout uniformSet, Runnable blendingSetup, ImageSet imageSet, SSBOSet ssboSet) {
         this.opaqueDrawTargets = opaqueDrawTargets;
         this.translucentDrawTargets = translucentDrawTargets;
         this.opaquePatch = patch.getPatchOpaqueSource();
@@ -94,7 +94,7 @@ public class IrisVoxyRenderPipelineData {
     }
 
 
-    public static IrisVoxyRenderPipelineData buildPipeline(IrisRenderingPipeline ipipe, IrisShaderPatch patch, CustomUniforms cu, ShaderStorageBufferHolder ssboHolder) {
+    public static IrisFoxyRenderPipelineData buildPipeline(IrisRenderingPipeline ipipe, IrisShaderPatch patch, CustomUniforms cu, ShaderStorageBufferHolder ssboHolder) {
         var uniforms = createUniformLayoutStructAndUpdater(createUniformSet(cu, patch));
 
 
@@ -108,7 +108,7 @@ public class IrisVoxyRenderPipelineData {
 
 
         //TODO: need to transform the string patch with the uniform decleration aswell as sampler declerations
-        return new IrisVoxyRenderPipelineData(patch, opaqueDrawTargets, translucentDrawTargets, uniforms, patch.createBlendSetup(), imageSet, ssboSet);
+        return new IrisFoxyRenderPipelineData(patch, opaqueDrawTargets, translucentDrawTargets, uniforms, patch.createBlendSetup(), imageSet, ssboSet);
     }
 
     private static int[] getDrawBuffers(int[] targets, ImmutableSet<Integer> stageWritesToAlt, RenderTargets rt) {

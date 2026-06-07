@@ -1,11 +1,11 @@
 package com.github.foxy.client.mixin.sodium;
 
 import com.github.foxy.client.ICheekyClientChunkCache;
-import com.github.foxy.client.config.VoxyConfig;
-import com.github.foxy.client.core.IGetVoxyRenderSystem;
-import com.github.foxy.client.core.VoxyRenderSystem;
+import com.github.foxy.client.config.FoxyConfig;
+import com.github.foxy.client.core.IGetFoxyRenderSystem;
+import com.github.foxy.client.core.FoxyRenderSystem;
 import com.github.foxy.common.world.service.VoxelIngestService;
-import com.github.foxy.commonImpl.VoxyCommon;
+import com.github.foxy.commonImpl.FoxyCommon;
 import me.jellysquid.mods.sodium.client.gl.device.CommandList;
 import me.jellysquid.mods.sodium.client.render.chunk.RenderSection;
 import me.jellysquid.mods.sodium.client.render.chunk.RenderSectionManager;
@@ -43,10 +43,10 @@ public class MixinRenderSectionManager {
     @Shadow @Final private ChunkBuilder builder;
 
     @Inject(method = "<init>", at = @At("TAIL"))
-    private void voxy$resetChunkTracker(ClientLevel world, int renderDistance, CommandList commandList, CallbackInfo ci) {
+    private void foxy$resetChunkTracker(ClientLevel world, int renderDistance, CommandList commandList, CallbackInfo ci) {
         var levelRenderer = Minecraft.getInstance().levelRenderer;
         if (levelRenderer != null) {
-            var system = ((IGetVoxyRenderSystem) levelRenderer).voxy$getRenderSystem();
+            var system = ((IGetFoxyRenderSystem) levelRenderer).foxy$getRenderSystem();
             if (system != null) {
                 system.chunkBoundRenderer.reset();
             }
@@ -55,12 +55,12 @@ public class MixinRenderSectionManager {
     }
 
     @Inject(method = "onChunkRemoved", at = @At("HEAD"))
-    private void voxy$injectIngest(int x, int z, CallbackInfo ci) {
+    private void foxy$injectIngest(int x, int z, CallbackInfo ci) {
         //TODO: Am not quite sure if this is right
-        if (VoxyConfig.CONFIG.ingestEnabled && !BOBBY_INSTALLED) {
+        if (FoxyConfig.CONFIG.ingestEnabled && !BOBBY_INSTALLED) {
             var cccm = (ICheekyClientChunkCache) this.world.getChunkSource();
             if (cccm != null) {
-                var chunk = cccm.voxy$cheekyGetChunk(x, z);
+                var chunk = cccm.foxy$cheekyGetChunk(x, z);
                 if (chunk != null) {
                     VoxelIngestService.tryAutoIngestChunk(chunk);
                 }
@@ -70,8 +70,8 @@ public class MixinRenderSectionManager {
 
 
     @Inject(method = "onChunkAdded", at = @At("HEAD"))
-    private void voxy$ingestOnAdd(int x, int z, CallbackInfo ci) {
-        if (Minecraft.getInstance().levelRenderer != null && VoxyConfig.CONFIG.ingestEnabled) {
+    private void foxy$ingestOnAdd(int x, int z, CallbackInfo ci) {
+        if (Minecraft.getInstance().levelRenderer != null && FoxyConfig.CONFIG.ingestEnabled) {
             var cccm = this.world.getChunkSource();
             if (cccm != null) {
                 var chunk = cccm.getChunk(x, z, ChunkStatus.FULL, false);
@@ -87,7 +87,7 @@ public class MixinRenderSectionManager {
     @Unique private int bottomSectionY;
 
     @Redirect(method = "updateSectionInfo", at = @At(value = "INVOKE", target = "Lme/jellysquid/mods/sodium/client/render/chunk/RenderSection;setInfo(Lme/jellysquid/mods/sodium/client/render/chunk/data/BuiltSectionInfo;)V"))
-    private void voxy$updateOnUpload(RenderSection instance, BuiltSectionInfo info) {
+    private void foxy$updateOnUpload(RenderSection instance, BuiltSectionInfo info) {
         boolean wasBuilt = instance.getFlags() != 0;
         int flags = instance.getFlags();
         instance.setInfo(info);
@@ -99,13 +99,13 @@ public class MixinRenderSectionManager {
         if (flags == 0)//Only process things with stuff
             return;
 
-        VoxyRenderSystem system = ((IGetVoxyRenderSystem) (Minecraft.getInstance().levelRenderer)).voxy$getRenderSystem();
+        FoxyRenderSystem system = ((IGetFoxyRenderSystem) (Minecraft.getInstance().levelRenderer)).foxy$getRenderSystem();
         if (system == null) {
             return;
         }
         int x = instance.getChunkX(), y = instance.getChunkY(), z = instance.getChunkZ();
 
-        if (wasBuilt && VoxyConfig.CONFIG.ingestEnabled) {
+        if (wasBuilt && FoxyConfig.CONFIG.ingestEnabled) {
             var tracker = ((AccessorChunkTracker) ChunkTrackerHolder.get(this.world)).getChunkStatus();
             //in theory the cache value could be wrong but is so soso unlikely and at worst means we either duplicate ingest a chunk
             // which... could be bad ;-; or we dont ingest atall which is ok!
@@ -116,7 +116,7 @@ public class MixinRenderSectionManager {
             }
             if (this.cachedChunkStatus == 3) {//If this chunk still has surrounding chunks
                 var cccm = this.world.getChunkSource();
-                //var chunk = ((ICheekyClientChunkCache)cccm).voxy$cheekyGetChunk(x, z);
+                //var chunk = ((ICheekyClientChunkCache)cccm).foxy$cheekyGetChunk(x, z);
                 //Dont thinks need to use cheekyGetChunk here as thats handled by the inject into head of onChunkRemoved
                 // but only ingest if the chunkstatus is full and exists
                 var chunk = cccm.getChunk(x, z, ChunkStatus.FULL, false);
@@ -136,7 +136,7 @@ public class MixinRenderSectionManager {
         }
 
         //Do some very cheeky stuff for MiB
-        if (VoxyCommon.IS_MINE_IN_ABYSS) {
+        if (FoxyCommon.IS_MINE_IN_ABYSS) {
             int sector = (x + 512) >> 10;
             x -= sector << 10;
             y += 16 + (256 - 32 - sector * 30);

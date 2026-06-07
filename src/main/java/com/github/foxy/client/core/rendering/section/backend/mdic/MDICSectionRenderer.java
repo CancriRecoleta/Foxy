@@ -2,7 +2,7 @@ package com.github.foxy.client.core.rendering.section.backend.mdic;
 
 
 import com.github.foxy.client.RenderStatistics;
-import com.github.foxy.client.VoxyClient;
+import com.github.foxy.client.FoxyClient;
 import com.github.foxy.client.core.AbstractRenderPipeline;
 import com.github.foxy.client.core.gl.Capabilities;
 import com.github.foxy.client.core.gl.GlBuffer;
@@ -64,23 +64,23 @@ public class MDICSectionRenderer extends AbstractSectionRenderer<MDICViewport, B
             .defineIf("HAS_STATISTICS", RenderStatistics.enabled)
             .defineIf("STATISTICS_BUFFER_BINDING", RenderStatistics.enabled, STATISTICS_BUFFER_BINDING)
 
-            .add(ShaderType.COMPUTE, "voxy:lod/gl46/cmdgen.comp")
+            .add(ShaderType.COMPUTE, "foxy:lod/gl46/cmdgen.comp")
             .compile();
 
     private final Shader prepShader = Shader.make()
-            .add(ShaderType.COMPUTE, "voxy:lod/gl46/prep.comp")
+            .add(ShaderType.COMPUTE, "foxy:lod/gl46/prep.comp")
             .compile();
 
     private final Shader cullShader;
 
     private final Shader prefixSumShader = Shader.make()
             //Use subgroup prefix sum if possible otherwise use dodgy... slow prefix sum
-            .add(ShaderType.COMPUTE, Capabilities.INSTANCE.subgroup?"voxy:util/prefixsum/inital3.comp":"voxy:util/prefixsum/simple.comp")
+            .add(ShaderType.COMPUTE, Capabilities.INSTANCE.subgroup?"foxy:util/prefixsum/inital3.comp":"foxy:util/prefixsum/simple.comp")
             .define("IO_BUFFER", 0)
             .compile();
 
     private final Shader translucentGenShader = Shader.make()
-            .add(ShaderType.COMPUTE, "voxy:lod/gl46/buildtranslucents.comp")
+            .add(ShaderType.COMPUTE, "foxy:lod/gl46/buildtranslucents.comp")
             .define("TRANSLUCENT_WRITE_BASE", 1024)//The size of the prefix sum array
             .define("TRANSLUCENT_DISTANCE_BUFFER_BINDING", 5)
             .define("TRANSLUCENT_OFFSET", TRANSLUCENT_OFFSET)
@@ -101,7 +101,7 @@ public class MDICSectionRenderer extends AbstractSectionRenderer<MDICViewport, B
         this.pipeline = pipeline;
         //The pipeline can be used to transform the renderer in abstract ways
 
-        String vertex = ShaderLoader.parse("voxy:lod/gl46/quads3.vert");
+        String vertex = ShaderLoader.parse("foxy:lod/gl46/quads3.vert");
         String taa = pipeline.taaFunction("taaShift");
         if (taa != null) {
             vertex += "\n"+taa;//inject it at the end
@@ -120,7 +120,7 @@ public class MDICSectionRenderer extends AbstractSectionRenderer<MDICViewport, B
         //Apply per face tinting
         addDirectionalFaceTint(builder, Minecraft.getInstance().level);
 
-        String frag = ShaderLoader.parse("voxy:lod/gl46/quads.frag");
+        String frag = ShaderLoader.parse("foxy:lod/gl46/quads.frag");
 
         String opaqueFrag = pipeline.patchOpaqueShader(this, frag);
         opaqueFrag = opaqueFrag==null?frag:opaqueFrag;
@@ -136,15 +136,15 @@ public class MDICSectionRenderer extends AbstractSectionRenderer<MDICViewport, B
         if (this.pipeline.hasTAA()) {
             this.cullShader = Shader.make()
                     .apply(this.properties::apply)
-                    .addSource(ShaderType.VERTEX, ShaderLoader.parse("voxy:lod/gl46/cull/raster.vert")+"\n\n\n\n"+pipeline.taaFunction("getTAA"))
+                    .addSource(ShaderType.VERTEX, ShaderLoader.parse("foxy:lod/gl46/cull/raster.vert")+"\n\n\n\n"+pipeline.taaFunction("getTAA"))
                     .define("TAA")
-                    .add(ShaderType.FRAGMENT, "voxy:lod/gl46/cull/raster.frag")
+                    .add(ShaderType.FRAGMENT, "foxy:lod/gl46/cull/raster.frag")
                     .compile();
         } else {
             this.cullShader = Shader.make()
                     .apply(this.properties::apply)
-                    .add(ShaderType.VERTEX, "voxy:lod/gl46/cull/raster.vert")
-                    .add(ShaderType.FRAGMENT, "voxy:lod/gl46/cull/raster.frag")
+                    .add(ShaderType.VERTEX, "foxy:lod/gl46/cull/raster.vert")
+                    .add(ShaderType.FRAGMENT, "foxy:lod/gl46/cull/raster.frag")
                     .compile();
         }
     }
@@ -199,11 +199,11 @@ public class MDICSectionRenderer extends AbstractSectionRenderer<MDICViewport, B
         glMemoryBarrier(GL_COMMAND_BARRIER_BIT|GL_SHADER_STORAGE_BARRIER_BIT);//Barrier everything is needed
         glProvokingVertex(GL_FIRST_VERTEX_CONVENTION);
 
-        if (VoxyClient.getOcclusionDebugState()==3) {
+        if (FoxyClient.getOcclusionDebugState()==3) {
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         }
         glMultiDrawElementsIndirectCountARB(GL_TRIANGLES, GL_UNSIGNED_SHORT, indirectOffset, drawCountOffset, maxDrawCount, 0);
-        if (VoxyClient.getOcclusionDebugState()==3) {
+        if (FoxyClient.getOcclusionDebugState()==3) {
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         }
 

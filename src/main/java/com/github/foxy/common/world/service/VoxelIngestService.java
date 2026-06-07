@@ -9,7 +9,7 @@ import com.github.foxy.common.voxelization.WorldConversionFactory;
 import com.github.foxy.common.voxelization.WorldVoxilizedSectionMipper;
 import com.github.foxy.common.world.WorldEngine;
 import com.github.foxy.common.world.WorldUpdater;
-import com.github.foxy.commonImpl.VoxyCommon;
+import com.github.foxy.commonImpl.FoxyCommon;
 import com.github.foxy.commonImpl.WorldIdentifier;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.LightLayer;
@@ -183,7 +183,7 @@ public class VoxelIngestService {
     //Utility method to ingest a chunk into the given WorldIdentifier or world
     public static boolean tryIngestChunk(WorldIdentifier worldId, LevelChunk chunk) {
         if (worldId == null) return false;
-        var instance = VoxyCommon.getInstance();
+        var instance = FoxyCommon.getInstance();
         if (instance == null) return false;
         if (!instance.isIngestEnabled(worldId)) return false;
         var engine = instance.getOrCreate(worldId);

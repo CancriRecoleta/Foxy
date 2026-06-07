@@ -48,7 +48,7 @@ public class ChunkBoundRenderer {
         this.chunk2idx.defaultReturnValue(-1);
         this.properties = pipeline.properties;
 
-        String vert = ShaderLoader.parse("voxy:chunkoutline/outline.vsh");
+        String vert = ShaderLoader.parse("foxy:chunkoutline/outline.vsh");
         String taa = pipeline.taaFunction("getTAA");
         if (taa != null) {
             this.pipeline = pipeline;
@@ -60,7 +60,7 @@ public class ChunkBoundRenderer {
         this.rasterShader = Shader.makeAuto()
                 .addSource(ShaderType.VERTEX, vert)
                 .defineIf("TAA", taa != null)
-                .add(ShaderType.FRAGMENT, "voxy:chunkoutline/outline.fsh")
+                .add(ShaderType.FRAGMENT, "foxy:chunkoutline/outline.fsh")
                 .apply(this.properties::apply)
                 .compile()
                 .ubo(0, this.uniformBuffer)

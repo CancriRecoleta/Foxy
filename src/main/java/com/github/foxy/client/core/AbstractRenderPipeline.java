@@ -2,7 +2,7 @@ package com.github.foxy.client.core;
 
 import com.github.foxy.client.RenderStatistics;
 import com.github.foxy.client.TimingStatistics;
-import com.github.foxy.client.VoxyClient;
+import com.github.foxy.client.FoxyClient;
 import com.github.foxy.client.core.model.ModelBakerySubsystem;
 import com.github.foxy.client.core.rendering.Viewport;
 import com.github.foxy.client.core.rendering.hierachical.AsyncNodeManager;
@@ -74,7 +74,7 @@ public abstract class AbstractRenderPipeline extends TrackedObject {
         this.traversal = traversal;
         this.deferTranslucency = deferTranslucency;
 
-        this.depthStencilSetup = new FullscreenBlit(properties, "voxy:post/fullscreen2.vert", "voxy:post/setup_stencil_depth.frag");
+        this.depthStencilSetup = new FullscreenBlit(properties, "foxy:post/fullscreen2.vert", "foxy:post/setup_stencil_depth.frag");
     }
 
     //Allows pipelines to configure model baking system
@@ -103,7 +103,7 @@ public abstract class AbstractRenderPipeline extends TrackedObject {
         var rs = ((AbstractSectionRenderer)this.sectionRenderer);
         GPUTiming.INSTANCE.marker("RO");
         rs.renderOpaque(viewport);
-        var occlusionDebug = VoxyClient.getOcclusionDebugState();
+        var occlusionDebug = FoxyClient.getOcclusionDebugState();
         if (occlusionDebug==0) {
             GPUTiming.INSTANCE.marker("I");
             this.innerPrimaryWork(viewport, depthTexture);
@@ -162,7 +162,7 @@ public abstract class AbstractRenderPipeline extends TrackedObject {
         glDepthFunc(this.properties.closerEqualDepthCompare());
         glColorMask(true,true,true,true);
 
-        //Make voxy terrain render only where there isnt mc terrain
+        //Make foxy terrain render only where there isnt mc terrain
         glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
         glStencilFunc(GL_EQUAL, 1, 0xFF);
     }

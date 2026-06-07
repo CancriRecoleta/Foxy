@@ -26,11 +26,11 @@ import static org.lwjgl.opengl.GL43.*;
 
 public class DebugRenderer {
     private final Shader debugShader = Shader.make()
-            .add(ShaderType.VERTEX, "voxy:lod/hierarchical/debug/node_outline.vert")
-            .add(ShaderType.FRAGMENT, "voxy:lod/hierarchical/debug/frag.frag")
+            .add(ShaderType.VERTEX, "foxy:lod/hierarchical/debug/node_outline.vert")
+            .add(ShaderType.FRAGMENT, "foxy:lod/hierarchical/debug/frag.frag")
             .compile();
     private final Shader setupShader = Shader.make()
-            .add(ShaderType.COMPUTE, "voxy:lod/hierarchical/debug/setup.comp")
+            .add(ShaderType.COMPUTE, "foxy:lod/hierarchical/debug/setup.comp")
             .compile();
 
     private final GlBuffer uniformBuffer = new GlBuffer(1024).zero();

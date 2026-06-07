@@ -3,7 +3,7 @@ package com.github.foxy.client.mixin.iris;
 import com.google.common.collect.ImmutableList;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import com.github.foxy.client.config.VoxyConfig;
+import com.github.foxy.client.config.FoxyConfig;
 import com.github.foxy.client.core.util.IrisUtil;
 import com.github.foxy.client.iris.IrisShaderPatch;
 import net.irisshaders.iris.gl.shader.StandardMacros;
@@ -25,9 +25,9 @@ public abstract class MixinStandardMacros {
     private static  void define(List<StringPair> defines, String key, String value){}
 
     @WrapOperation(method = "createStandardEnvironmentDefines", at = @At(value = "INVOKE", target = "Lcom/google/common/collect/ImmutableList;copyOf(Ljava/util/Collection;)Lcom/google/common/collect/ImmutableList;"))
-    private static ImmutableList<StringPair> voxy$injectVoxyDefine(Collection<StringPair> list, Operation<ImmutableList<StringPair>> original) {
-        if (VoxyConfig.CONFIG.isRenderingEnabled() && IrisUtil.SHADER_SUPPORT) {
-            define((List<StringPair>) list, "VOXY", Integer.toString(IrisShaderPatch.SHADER_DEFINE_VERSION));
+    private static ImmutableList<StringPair> foxy$injectFoxyDefine(Collection<StringPair> list, Operation<ImmutableList<StringPair>> original) {
+        if (FoxyConfig.CONFIG.isRenderingEnabled() && IrisUtil.SHADER_SUPPORT) {
+            define((List<StringPair>) list, "FOXY", Integer.toString(IrisShaderPatch.SHADER_DEFINE_VERSION));
             /*
             if (IrisShaderPatch.IMPERSONATE_DISTANT_HORIZONS) {
                 define((List<StringPair>) list, "DISTANT_HORIZONS");

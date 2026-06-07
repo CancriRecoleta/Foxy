@@ -1,6 +1,6 @@
 package com.github.foxy.client.core.util;
 
-import com.github.foxy.client.core.VoxyRenderSystem;
+import com.github.foxy.client.core.FoxyRenderSystem;
 import com.github.foxy.client.core.rendering.Viewport;
 import me.jellysquid.mods.sodium.client.render.chunk.ChunkRenderMatrices;
 import com.github.foxy.client.core.util.FogParameters;
@@ -15,7 +15,7 @@ import java.io.IOException;
 public class IrisUtil {
 
     public record CapturedViewportParameters(ChunkRenderMatrices matrices, FogParameters parameters, double x, double y, double z) {
-        public Viewport<?> apply(VoxyRenderSystem vrs) {
+        public Viewport<?> apply(FoxyRenderSystem vrs) {
             return vrs.setupViewport(this.matrices.projection(), this.matrices.modelView(), this.parameters, this.x, this.y, this.z);
         }
     }
@@ -23,7 +23,7 @@ public class IrisUtil {
     public static CapturedViewportParameters CAPTURED_VIEWPORT_PARAMETERS;
 
     public static final boolean IRIS_INSTALLED = ModList.get().isLoaded("oculus");
-    public static final boolean SHADER_SUPPORT = true;//System.getProperty("voxy.enableExperimentalIrisPipeline", "false").equalsIgnoreCase("true");
+    public static final boolean SHADER_SUPPORT = true;//System.getProperty("foxy.enableExperimentalIrisPipeline", "false").equalsIgnoreCase("true");
 
 
     private static boolean irisShadowActive0() {

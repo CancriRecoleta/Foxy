@@ -75,7 +75,7 @@ public class SSAO {
     public SSAO(RenderProperties properties, boolean betterSSAO, int samples) {
         var builder = Shader.make()
                 .apply(properties::apply)
-                .add(ShaderType.COMPUTE, "voxy:post/ssao.comp");
+                .add(ShaderType.COMPUTE, "foxy:post/ssao.comp");
 
         this.spp = samples;
 

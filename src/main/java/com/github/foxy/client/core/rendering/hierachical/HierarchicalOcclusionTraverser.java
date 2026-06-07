@@ -2,7 +2,7 @@ package com.github.foxy.client.core.rendering.hierachical;
 
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import com.github.foxy.client.RenderStatistics;
-import com.github.foxy.client.config.VoxyConfig;
+import com.github.foxy.client.config.FoxyConfig;
 import com.github.foxy.client.core.AbstractRenderPipeline;
 import com.github.foxy.client.core.gl.GlBuffer;
 import com.github.foxy.client.core.gl.shader.AutoBindingShader;
@@ -33,7 +33,7 @@ import static org.lwjgl.opengl.GL45.*;
 
 // TODO: swap to persistent gpu threads instead of dispatching MAX_ITERATIONS of compute layers
 public class HierarchicalOcclusionTraverser {
-    public static final boolean HIERARCHICAL_SHADER_DEBUG = System.getProperty("voxy.hierarchicalShaderDebug", "false").equals("true");
+    public static final boolean HIERARCHICAL_SHADER_DEBUG = System.getProperty("foxy.hierarchicalShaderDebug", "false").equals("true");
 
     public static final int MAX_REQUEST_QUEUE_SIZE = 50;
     public static final int MAX_QUEUE_SIZE = 200_000;
@@ -98,7 +98,7 @@ public class HierarchicalOcclusionTraverser {
 
     public void lateStageCompile(AbstractRenderPipeline pipeline) {
         String taa = pipeline.taaFunction("getTAA");
-        var scr = ShaderLoader.parse("voxy:lod/hierarchical/traversal_dev.comp");
+        var scr = ShaderLoader.parse("foxy:lod/hierarchical/traversal_dev.comp");
         if (taa != null) {
             scr += "\n\n\n" + taa;
             this.pipeline = pipeline;
@@ -206,7 +206,7 @@ public class HierarchicalOcclusionTraverser {
 
         //MemoryUtil.memPutFloat(ptr, viewport.height); ptr += 4;
 
-        final float screenspaceAreaDecreasingSize = VoxyConfig.CONFIG.subDivisionSize*VoxyConfig.CONFIG.subDivisionSize;
+        final float screenspaceAreaDecreasingSize = FoxyConfig.CONFIG.subDivisionSize*FoxyConfig.CONFIG.subDivisionSize;
         //Screen space size for descending
         MemoryUtil.memPutFloat(ptr, (float) (screenspaceAreaDecreasingSize) /(viewport.width*viewport.height)); ptr += 4;
 
@@ -226,7 +226,7 @@ public class HierarchicalOcclusionTraverser {
         }
 
         //Put the render distance here so that it can generate a correct circle, TODO: make it not top level section sized
-        MemoryUtil.memPutFloat(ptr, (float) Math.pow(VoxyConfig.CONFIG.sectionRenderDistance*16*32,2));ptr += 4;
+        MemoryUtil.memPutFloat(ptr, (float) Math.pow(FoxyConfig.CONFIG.sectionRenderDistance*16*32,2));ptr += 4;
 
 
     }

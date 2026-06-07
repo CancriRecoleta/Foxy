@@ -23,6 +23,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
+import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.BlockGetter;
@@ -773,11 +774,15 @@ public class ModelFactory {
     }
 
     private static BlockColor getColourProvider(Block block) {
-        // 1.20.1 keys BlockColors.blockColors by Holder.Reference<Block>; returns null when no
-        // colour provider is registered for the block (matching upstream voxy semantics). The map
-        // is reached via a mixin accessor (see AccessorBlockColors) rather than an AT.
+        // Forge 1.20.1 keys BlockColors.blockColors by the FORGE registry delegate
+        // (ForgeRegistries.BLOCKS.getDelegateOrThrow(block)) in BOTH register() and getColor() — NOT
+        // by block.builtInRegistryHolder(). Holder.Reference uses identity equality and Forge stores
+        // its own delegate Reference instances, so a builtInRegistryHolder() key misses and returns
+        // null for EVERY block. That silently made grass/foliage/water bake with no colour provider
+        // (constant colour -1 = 0xFFFFFFFF white, biome-LUT flag never set), so distant terrain
+        // rendered white. Use the same key the map was populated with. Null when no provider exists.
         return ((AccessorBlockColors) (Object) Minecraft.getInstance().getBlockColors())
-                .foxy$getBlockColors().get(block.builtInRegistryHolder());
+                .foxy$getBlockColors().get(ForgeRegistries.BLOCKS.getDelegateOrThrow(block));
     }
 
     //TODO: add a method to detect biome dependent colours (can do by detecting if getColor is ever called)

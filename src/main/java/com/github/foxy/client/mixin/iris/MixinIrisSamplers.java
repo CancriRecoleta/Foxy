@@ -1,7 +1,7 @@
 package com.github.foxy.client.mixin.iris;
 
 import com.google.common.collect.ImmutableSet;
-import com.github.foxy.client.iris.VoxySamplers;
+import com.github.foxy.client.iris.FoxySamplers;
 import net.irisshaders.iris.gl.sampler.SamplerHolder;
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
 import net.irisshaders.iris.pipeline.WorldRenderingPipeline;
@@ -17,9 +17,9 @@ import java.util.function.Supplier;
 @Mixin(value = IrisSamplers.class, remap = false)
 public class MixinIrisSamplers {
     @Inject(method = "addRenderTargetSamplers", at = @At("TAIL"))
-    private static void voxy$injectSamplers(SamplerHolder samplers, Supplier<ImmutableSet<Integer>> flipped, RenderTargets renderTargets, boolean isFullscreenPass, WorldRenderingPipeline pipeline, CallbackInfo ci) {
+    private static void foxy$injectSamplers(SamplerHolder samplers, Supplier<ImmutableSet<Integer>> flipped, RenderTargets renderTargets, boolean isFullscreenPass, WorldRenderingPipeline pipeline, CallbackInfo ci) {
         if (pipeline instanceof IrisRenderingPipeline ipipe) {
-            VoxySamplers.addSamplers(ipipe, samplers);
+            FoxySamplers.addSamplers(ipipe, samplers);
         }
     }
 }

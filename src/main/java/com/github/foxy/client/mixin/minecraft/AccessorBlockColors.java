@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 
 import java.util.Map;
 
-// A mixin accessor for the private BlockColors.blockColors map. Used instead of an access
+// A mixin accessor for the BlockColors.blockColors map. Used instead of an access
 // transformer because ForgeGradle's AT cache was unreliable for this particular field, whereas a
 // mixin @Accessor is resolved through the refmap and works in both dev and production.
 @Mixin(BlockColors.class)

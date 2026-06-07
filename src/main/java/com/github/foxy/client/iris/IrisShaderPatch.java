@@ -312,26 +312,26 @@ public class IrisShaderPatch {
             .create();
 
     public static IrisShaderPatch makePatch(ShaderPack ipack, AbsolutePackPath directory, Function<AbsolutePackPath, String> sourceProvider) {
-        String voxyPatchData = sourceProvider.apply(directory.resolve("voxy.json"));
-        if (voxyPatchData == null) {//No voxy patch data in shaderpack
+        String foxyPatchData = sourceProvider.apply(directory.resolve("foxy.json"));
+        if (foxyPatchData == null) {//No foxy patch data in shaderpack
             return null;
         }
 
         //A more graceful exit on blank string
-        if (voxyPatchData.isBlank()) {
+        if (foxyPatchData.isBlank()) {
             return null;
         }
 
         //Escape things
-        voxyPatchData = voxyPatchData.replace("\\", "\\\\");
+        foxyPatchData = foxyPatchData.replace("\\", "\\\\");
 
         PatchGson patchData = null;
         try {
             //TODO: basicly find any "commented out" quotation marks and escape them (if the line, when stripped starts with a // or /* then escape all quotation marks in that line)
             {
-                StringBuilder builder = new StringBuilder(voxyPatchData.length());
+                StringBuilder builder = new StringBuilder(foxyPatchData.length());
                 //Rebuild the patch, replacing commented out " with \"
-                for (var line : voxyPatchData.split("\n")) {
+                for (var line : foxyPatchData.split("\n")) {
                     int idx = line.indexOf("//");
                     if (idx != -1) {
                         builder.append(line, 0, idx);
@@ -341,30 +341,30 @@ public class IrisShaderPatch {
                     }
                     builder.append("\n");
                 }
-                voxyPatchData = builder.toString();
+                foxyPatchData = builder.toString();
             }
 
             //Stupid chunk fade in patch (should probably just breaks
-            voxyPatchData = voxyPatchData.replaceAll("void _cfi_ignoreMarker\\(\\) \\{\\}", "");
+            foxyPatchData = foxyPatchData.replaceAll("void _cfi_ignoreMarker\\(\\) \\{\\}", "");
 
-            patchData = GSON.fromJson(voxyPatchData, PatchGson.class);
+            patchData = GSON.fromJson(foxyPatchData, PatchGson.class);
             if (patchData == null) {
-                throw new IllegalStateException("Voxy patch json returned null, this is most likely due to malformed json file");
+                throw new IllegalStateException("Foxy patch json returned null, this is most likely due to malformed json file");
             }
 
             {//Inject data from the auxilery files if they are present
-                var opaque = sourceProvider.apply(directory.resolve("voxy_opaque.glsl"));
+                var opaque = sourceProvider.apply(directory.resolve("foxy_opaque.glsl"));
                 if (opaque != null) {
                     Logger.info("External opaque shader patch applied");
                     patchData.opaquePatchData = opaque;
                 }
-                var translucent = sourceProvider.apply(directory.resolve("voxy_translucent.glsl"));
+                var translucent = sourceProvider.apply(directory.resolve("foxy_translucent.glsl"));
                 if (translucent != null) {
                     Logger.info("External translucent shader patch applied");
                     patchData.translucentPatchData = translucent;
                 }
                 //This might be ok? not.. sure if is nice or not
-                var taa = sourceProvider.apply(directory.resolve("voxy_taa.glsl"));
+                var taa = sourceProvider.apply(directory.resolve("foxy_taa.glsl"));
                 if (taa != null) {
                     Logger.info("External taa shader patch applied");
                     patchData.taaOffset = taa;
@@ -373,13 +373,13 @@ public class IrisShaderPatch {
 
             var invalidPatchDataReason = patchData.checkValid();
             if (invalidPatchDataReason!=null) {
-                throw new IllegalStateException("voxy json patch not valid: " + invalidPatchDataReason);
+                throw new IllegalStateException("foxy json patch not valid: " + invalidPatchDataReason);
             }
         } catch (Exception e) {
             patchData = null;
             Logger.error("Failed to parse patch data gson, dumping json",e);
             try {
-                Files.writeString(Path.of("JSON_DUMP.txt"), voxyPatchData);
+                Files.writeString(Path.of("JSON_DUMP.txt"), foxyPatchData);
             } catch (IOException j) {
                 throw new RuntimeException(j);
             }
@@ -389,7 +389,7 @@ public class IrisShaderPatch {
             return null;
         }
         if (patchData.version != VERSION) {
-            Logger.error("Shader has voxy patch data, but patch version is incorrect. expected " + VERSION + " got "+patchData.version);
+            Logger.error("Shader has foxy patch data, but patch version is incorrect. expected " + VERSION + " got "+patchData.version);
             throw new IllegalStateException("Shader version mismatch expected " + VERSION + " got "+patchData.version);
         }
         return new IrisShaderPatch(patchData, ipack);

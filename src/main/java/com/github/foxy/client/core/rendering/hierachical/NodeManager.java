@@ -30,7 +30,7 @@ import static com.github.foxy.common.world.WorldEngine.UPDATE_TYPE_BLOCK_BIT;
 
 
 public class NodeManager {
-    private static final boolean VERIFY_NODE_MANAGER_OPERATIONS = true;//VoxyCommon.isVerificationFlagOn("nodeManager");
+    private static final boolean VERIFY_NODE_MANAGER_OPERATIONS = true;//FoxyCommon.isVerificationFlagOn("nodeManager");
     //Assumptions:
     // all nodes have children (i.e. all nodes have at least one child existence bit set at all times)
     // leaf nodes always contain geometry (empty geometry counts as geometry (it just doesnt take any memory to store))

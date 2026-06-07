@@ -3,7 +3,7 @@ package com.github.foxy.client.core;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.github.foxy.client.core.gl.shader.Shader;
 import com.github.foxy.client.core.util.IrisUtil;
-import com.github.foxy.client.iris.IGetIrisVoxyPipelineData;
+import com.github.foxy.client.iris.IGetIrisFoxyPipelineData;
 import net.irisshaders.iris.Iris;
 
 import static org.lwjgl.opengl.GL11C.*;
@@ -46,8 +46,8 @@ public record RenderProperties(boolean isZero2One, boolean isReverseZ, boolean u
         if (irisPipe == null) {
             return false;
         }
-        if (irisPipe instanceof IGetIrisVoxyPipelineData getVoxyPipeData) {
-            var pipeData = getVoxyPipeData.voxy$getPipelineData();
+        if (irisPipe instanceof IGetIrisFoxyPipelineData getFoxyPipeData) {
+            var pipeData = getFoxyPipeData.foxy$getPipelineData();
             if (pipeData == null) {
                 return false;
             }

@@ -3,7 +3,7 @@ package com.github.foxy.common;
 import com.google.gson.*;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
-import com.github.foxy.commonImpl.VoxyCommon;
+import com.github.foxy.commonImpl.FoxyCommon;
 import com.github.foxy.commonImpl.WorldIdentifier;
 
 import java.io.FileReader;
@@ -164,8 +164,8 @@ public class WorldConfigStorage<T> {
     }
 
     public void save() {
-        if (!VoxyCommon.isAvailable()) {
-            Logger.info("Not saving config since voxy is unavalible");
+        if (!FoxyCommon.isAvailable()) {
+            Logger.info("Not saving config since foxy is unavalible");
             return;
         }
 

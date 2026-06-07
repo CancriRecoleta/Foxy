@@ -41,7 +41,7 @@ public class NodeCleaner {
             .define("VISIBILITY_BUFFER_BINDING", 1)
             .define("OUTPUT_BUFFER_BINDING", 2)
             .define("NODE_DATA_BINDING", 3)
-            .add(ShaderType.COMPUTE, "voxy:lod/hierarchical/cleaner/sort_visibility.comp")
+            .add(ShaderType.COMPUTE, "foxy:lod/hierarchical/cleaner/sort_visibility.comp")
             .compile();
 
     private final AutoBindingShader resultTransformer = Shader.makeAuto()
@@ -50,13 +50,13 @@ public class NodeCleaner {
             .define("NODE_BUFFER_BINDING", 1)
             .define("OUTPUT_BUFFER_BINDING", 2)
             .define("VISIBILITY_BUFFER_BINDING", 3)
-            .add(ShaderType.COMPUTE, "voxy:lod/hierarchical/cleaner/result_transformer.comp")
+            .add(ShaderType.COMPUTE, "foxy:lod/hierarchical/cleaner/result_transformer.comp")
             .compile();
 
     private final AutoBindingShader batchClear = Shader.makeAuto()
             .define("VISIBILITY_BUFFER_BINDING", 0)
             .define("LIST_BUFFER_BINDING", 1)
-            .add(ShaderType.COMPUTE, "voxy:lod/hierarchical/cleaner/batch_visibility_set.comp")
+            .add(ShaderType.COMPUTE, "foxy:lod/hierarchical/cleaner/batch_visibility_set.comp")
             .compile();
 
 

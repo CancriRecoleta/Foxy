@@ -38,6 +38,16 @@ public class SoftwareRasterizer {
     private static final long DEPTH_MASK = ((1L<<24)-1)<<(64-24);
     private static final long CLEAR_VALUE = DEPTH_MASK;//set the depth to max value and rest of bits to 0
 
+    // Edge-test tolerance for the closed (orZero) triangle. Pixel centres lying EXACTLY on a face
+    // tile's shared 0-2 diagonal (a full 16x16 face's y=x diagonal passes through centres
+    // (0.5,0.5),(1.5,1.5),...,(15.5,15.5)) have a barycentric of exactly 0 in real arithmetic, but
+    // edge()*invArea rounds them to tiny NEGATIVE floats, so a strict `>= 0` test drops them: the
+    // open triangle already excludes the diagonal and the closed one then also misses it, leaving
+    // those pixels at the clear value (0x00000000) -> a static transparent/black diagonal on LOD
+    // faces. Widening only the closed triangle's test by this sub-pixel epsilon keeps the diagonal
+    // covered without double-covering the open triangle's interior.
+    private static final float EDGE_EPSILON = 1.0e-4f;
+
     private final int targetSize;
     private final long[] framebuffer;
 
@@ -152,7 +162,7 @@ public class SoftwareRasterizer {
                 float w1 = edge(v2, v3, cx, cy)*invArea;
                 float w2 = edge(v3, v1, cx, cy)*invArea;
                 float w3 = 1.0f-w1-w2;
-                if ((w1>0.0f&&w2>0.0f&&w3>0.0f)||(orZero&&w1>=0.0f&&w2>=0.0f&&w3>=0.0f)) {
+                if ((w1>0.0f&&w2>0.0f&&w3>0.0f)||(orZero&&w1>=-EDGE_EPSILON&&w2>=-EDGE_EPSILON&&w3>=-EDGE_EPSILON)) {
                     //Dont need to worry about perspective correction afak as it should already be all correct
 
                     //pixel is inside the triangle

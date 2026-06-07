@@ -1,7 +1,7 @@
 package com.github.foxy.common.world;
 
 
-import com.github.foxy.commonImpl.VoxyCommon;
+import com.github.foxy.commonImpl.FoxyCommon;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 // holds a 32x32x32 region of detail
 public final class WorldSection {
     public static final int SECTION_VOLUME = 32*32*32;
-    public static final boolean VERIFY_WORLD_SECTION_EXECUTION = VoxyCommon.isVerificationFlagOn("verifyWorldSectionExecution");
+    public static final boolean VERIFY_WORLD_SECTION_EXECUTION = FoxyCommon.isVerificationFlagOn("verifyWorldSectionExecution");
 
 
     static final VarHandle ATOMIC_STATE_HANDLE;

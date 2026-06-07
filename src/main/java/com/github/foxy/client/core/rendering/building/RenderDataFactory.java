@@ -11,7 +11,7 @@ import com.github.foxy.common.util.UnsafeUtil;
 import com.github.foxy.common.world.WorldEngine;
 import com.github.foxy.common.world.WorldSection;
 import com.github.foxy.common.world.other.Mapper;
-import com.github.foxy.commonImpl.VoxyCommon;
+import com.github.foxy.commonImpl.FoxyCommon;
 import org.lwjgl.system.MemoryUtil;
 
 import java.util.Arrays;
@@ -23,7 +23,7 @@ public class RenderDataFactory {
     private static final boolean CHECK_NEIGHBOR_FACE_OCCLUSION = true;
     private static final boolean DISABLE_CULL_SAME_OCCLUDES = false;//TODO: FIX TRANSLUCENTS (e.g. stained glass) breaking on chunk boarders with this set to false (it might be something else????)
 
-    private static final boolean VERIFY_MESHING = VoxyCommon.isVerificationFlagOn("verifyMeshing");
+    private static final boolean VERIFY_MESHING = FoxyCommon.isVerificationFlagOn("verifyMeshing");
 
     //TODO: MAKE a render cache that caches each WorldSection directional face generation, cause then can just pull that directly
     // instead of needing to regen the entire thing

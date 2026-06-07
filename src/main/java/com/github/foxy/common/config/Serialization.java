@@ -5,7 +5,7 @@ import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 import com.github.foxy.common.Logger;
-import com.github.foxy.commonImpl.VoxyCommon;
+import com.github.foxy.commonImpl.FoxyCommon;
 import net.minecraftforge.fml.ModList;
 
 import java.io.BufferedReader;
@@ -102,7 +102,7 @@ public class Serialization {
         int count = 0;
         outer:
         for (var clzName : clazzs) {
-            if (VoxyCommon.IS_DEDICATED_SERVER&&clzName.startsWith("com.github.foxy.client")) {
+            if (FoxyCommon.IS_DEDICATED_SERVER&&clzName.startsWith("com.github.foxy.client")) {
                 continue;//Dont load stuff from client path when were on a dedicated server
             }
             if (!clzName.toLowerCase(Locale.ROOT).contains("config")) {
@@ -114,10 +114,10 @@ public class Serialization {
             if (clzName.contains("ModMenuIntegration")) {
                 continue;//Dont want to modmenu incase it doesnt exist
             }
-            if (clzName.contains("VoxyConfigScreenPages")) {
+            if (clzName.contains("FoxyConfigScreenPages")) {
                 continue;//Dont want to modmenu incase it doesnt exist
             }
-            if (clzName.endsWith("VoxyConfig")) {
+            if (clzName.endsWith("FoxyConfig")) {
                 continue;//Special case to prevent recursive loading pain
             }
 

@@ -39,8 +39,8 @@ public class HiZBuffer {
         this.type = type;
         this.hiz = Shader.make()
                 .apply(properties::apply)
-                .add(ShaderType.VERTEX, "voxy:hiz/blit.vsh")
-                .add(ShaderType.FRAGMENT, "voxy:hiz/blit.fsh")
+                .add(ShaderType.VERTEX, "foxy:hiz/blit.vsh")
+                .add(ShaderType.FRAGMENT, "foxy:hiz/blit.fsh")
                 .compile()
                 .name("HiZ Builder");
         this.properties = properties;

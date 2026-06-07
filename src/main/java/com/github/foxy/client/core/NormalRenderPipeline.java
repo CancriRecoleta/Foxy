@@ -1,7 +1,7 @@
 package com.github.foxy.client.core;
 
 import net.minecraft.util.Mth;
-import com.github.foxy.client.config.VoxyConfig;
+import com.github.foxy.client.config.FoxyConfig;
 import com.github.foxy.client.core.gl.GlFramebuffer;
 import com.github.foxy.client.core.gl.GlTexture;
 import com.github.foxy.client.core.gl.shader.Shader;
@@ -43,12 +43,12 @@ public class NormalRenderPipeline extends AbstractRenderPipeline {
 
     protected NormalRenderPipeline(RenderProperties properties, AsyncNodeManager nodeManager, NodeCleaner nodeCleaner, HierarchicalOcclusionTraverser traversal, BooleanSupplier frexSupplier) {
         super(properties, nodeManager, nodeCleaner, traversal, frexSupplier, false);
-        this.useEnvFog = VoxyConfig.CONFIG.useEnvironmentalFog;
-        this.finalBlit = new FullscreenBlit(properties, "voxy:post/blit_texture_depth_cutout.frag",
+        this.useEnvFog = FoxyConfig.CONFIG.useEnvironmentalFog;
+        this.finalBlit = new FullscreenBlit(properties, "foxy:post/blit_texture_depth_cutout.frag",
                 a->a.defineIf("USE_ENV_FOG", this.useEnvFog).define("EMIT_COLOUR"));
 
 
-        this.ssao = SSAO.createSSAO(properties, VoxyConfig.CONFIG.getSSAOMode());
+        this.ssao = SSAO.createSSAO(properties, FoxyConfig.CONFIG.getSSAOMode());
     }
 
     @Override

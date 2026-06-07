@@ -3,7 +3,7 @@ package com.github.foxy.client;
 import com.github.foxy.client.core.gl.Capabilities;
 import com.github.foxy.client.core.rendering.util.SharedIndexBuffer;
 import com.github.foxy.common.Logger;
-import com.github.foxy.commonImpl.VoxyCommon;
+import com.github.foxy.commonImpl.FoxyCommon;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.client.event.RegisterClientCommandsEvent;
 import net.minecraftforge.common.MinecraftForge;
@@ -16,29 +16,31 @@ import java.io.IOException;
 import java.nio.channels.FileLock;
 import java.nio.channels.NonWritableChannelException;
 
-public class VoxyClient {
+public class FoxyClient {
     private static FileLock EXCLUSIVE_LOCK;
 
     // Wires Foxy's client-side Forge listeners. Called from FoxyMod via DistExecutor so this class
     // (and the Minecraft client classes it pulls in) is never loaded on a dedicated server.
     public static void bootstrapClient() {
         IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
-        modBus.addListener((FMLClientSetupEvent event) -> event.enqueueWork(VoxyClient::onClientSetup));
+        modBus.addListener((FMLClientSetupEvent event) -> event.enqueueWork(FoxyClient::onClientSetup));
 
         MinecraftForge.EVENT_BUS.addListener((RegisterClientCommandsEvent event) -> {
-            if (VoxyCommon.isAvailable()) {
-                event.getDispatcher().register(VoxyCommands.register());
+            if (FoxyCommon.isAvailable()) {
+                event.getDispatcher().register(FoxyCommands.register());
             }
         });
     }
 
     private static void onClientSetup() {
         DebugEntries.init();
+        // Register Foxy's options into Embeddium's video-settings GUI (Embeddium is a hard dependency).
+        com.github.foxy.client.gui.EmbeddiumConfigIntegration.register();
     }
 
     // The heavy client init (GL capability probing, instance factory) runs from the Minecraft mixin
-    // once a GL context exists, mirroring upstream voxy which also defers this past mod construction.
-    public static void initVoxyClient() {
+    // once a GL context exists, mirroring upstream foxy which also defers this past mod construction.
+    public static void initFoxyClient() {
         Capabilities.init();//Ensure clinit is called
 
         if (Capabilities.INSTANCE.hasBrokenDepthSampler) {
@@ -71,7 +73,7 @@ public class VoxyClient {
 
             SharedIndexBuffer.INSTANCE.id();
 
-            VoxyCommon.setInstanceFactory(VoxyClientInstance::new);
+            FoxyCommon.setInstanceFactory(FoxyClientInstance::new);
 
             if (!Capabilities.INSTANCE.subgroup) {
                 Logger.warn("GPU does not support subgroup operations, expect some performance degradation");

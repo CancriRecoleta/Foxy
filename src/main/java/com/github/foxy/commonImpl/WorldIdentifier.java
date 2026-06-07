@@ -64,7 +64,7 @@ public class WorldIdentifier {
 
     //Quick access utility method to get or create a world object in the current instance
     public WorldEngine getOrCreateEngine() {
-        var instance = VoxyCommon.getInstance();
+        var instance = FoxyCommon.getInstance();
         if (instance == null) {
             this.cachedEngineObject = null;
             return null;
@@ -77,7 +77,7 @@ public class WorldIdentifier {
     }
 
     public WorldEngine getNullable() {
-        var instance = VoxyCommon.getInstance();
+        var instance = FoxyCommon.getInstance();
         if (instance == null) {
             this.cachedEngineObject = null;
             return null;
@@ -90,7 +90,7 @@ public class WorldIdentifier {
         if (level == null) {
             return null;
         }
-        return ((IWorldGetIdentifier)level).voxy$getIdentifier();
+        return ((IWorldGetIdentifier)level).foxy$getIdentifier();
     }
 
     //Common utility function to get or create a world engine

@@ -3,8 +3,8 @@ package com.github.foxy.client.core;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.github.foxy.client.TimingStatistics;
-import com.github.foxy.client.VoxyClient;
-import com.github.foxy.client.config.VoxyConfig;
+import com.github.foxy.client.FoxyClient;
+import com.github.foxy.client.config.FoxyConfig;
 import com.github.foxy.client.core.gl.Capabilities;
 import com.github.foxy.client.core.gl.GlBuffer;
 import com.github.foxy.client.core.gl.GlTexture;
@@ -31,7 +31,7 @@ import com.github.foxy.client.core.util.IrisUtil;
 import com.github.foxy.common.Logger;
 import com.github.foxy.common.thread.ServiceManager;
 import com.github.foxy.common.world.WorldEngine;
-import com.github.foxy.commonImpl.VoxyCommon;
+import com.github.foxy.commonImpl.FoxyCommon;
 import com.github.foxy.client.core.util.FogParameters;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -50,7 +50,7 @@ import static org.lwjgl.opengl.GL33.glBindSampler;
 import static org.lwjgl.opengl.GL43.GL_SHADER_STORAGE_BUFFER;
 import static org.lwjgl.opengl.GL43C.GL_SHADER_STORAGE_BUFFER_BINDING;
 
-public class VoxyRenderSystem {
+public class FoxyRenderSystem {
     private final WorldEngine worldIn;
 
 
@@ -75,16 +75,16 @@ public class VoxyRenderSystem {
         return MDICSectionRenderer.FACTORY;
     }
 
-    public VoxyRenderSystem(WorldEngine world, ServiceManager sm) {
+    public FoxyRenderSystem(WorldEngine world, ServiceManager sm) {
         //Keep the world loaded, NOTE: this is done FIRST, to keep and ensure that even if the rest of loading takes more
         // than timeout, we keep the world acquired
         world.acquireRef();
-        Logger.info("Creating Voxy render system");
+        Logger.info("Creating Foxy render system");
 
         System.gc();
 
         if (Minecraft.getInstance().options.renderDistance().get()<3) {
-            String msg = "Voxy: Having a vanilla render distance of 2 can cause rare culling near the edge of your screen issues, please use 3 or more";
+            String msg = "Foxy: Having a vanilla render distance of 2 can cause rare culling near the edge of your screen issues, please use 3 or more";
             Logger.warn(msg);
             Minecraft.getInstance().getChatListener().handleSystemMessage(Component.literal(msg), false);
         }
@@ -138,7 +138,7 @@ public class VoxyRenderSystem {
                 int maxSec = (Minecraft.getInstance().level.getMaxSection() - 1) >> 5;
 
                 //Do some very cheeky stuff for MiB
-                if (VoxyCommon.IS_MINE_IN_ABYSS) {//TODO: make this somehow configurable
+                if (FoxyCommon.IS_MINE_IN_ABYSS) {//TODO: make this somehow configurable
                     minSec = -8;
                     maxSec = 7;
                 }
@@ -149,12 +149,12 @@ public class VoxyRenderSystem {
                         this.nodeManager::addTopLevel,
                         this.nodeManager::removeTopLevel);
 
-                this.setRenderDistance(VoxyConfig.CONFIG.sectionRenderDistance);
+                this.setRenderDistance(FoxyConfig.CONFIG.sectionRenderDistance);
             }
 
             this.chunkBoundRenderer = new ChunkBoundRenderer(this.pipeline);
 
-            Logger.info("Voxy render system created with " + this.geometryData.getMaxCapacity() + " geometry capacity, using pipeline '" + this.pipeline.getClass().getSimpleName() + "' with renderer '" + sectionRenderer.getClass().getSimpleName() + "'");
+            Logger.info("Foxy render system created with " + this.geometryData.getMaxCapacity() + " geometry capacity, using pipeline '" + this.pipeline.getClass().getSimpleName() + "' with renderer '" + sectionRenderer.getClass().getSimpleName() + "'");
         } catch (RuntimeException e) {
             world.releaseRef();//If something goes wrong, we must release the world first
             throw e;
@@ -179,14 +179,14 @@ public class VoxyRenderSystem {
         }
 
         //Do some very cheeky stuff for MiB
-        if (VoxyCommon.IS_MINE_IN_ABYSS) {
+        if (FoxyCommon.IS_MINE_IN_ABYSS) {
             int sector = (((int)Math.floor(cameraX)>>4)+512)>>10;
             cameraX -= sector<<14;//10+4
             cameraY += (16+(256-32-sector*30))*16;
         }
 
         //cameraY += 100;
-        var voxyProjection = computeProjectionMat(this.properties, vanillaProjection);
+        var foxyProjection = computeProjectionMat(this.properties, vanillaProjection);
 
         int[] dims = new int[4];
         glGetIntegerv(GL_VIEWPORT, dims);
@@ -208,14 +208,14 @@ public class VoxyRenderSystem {
 
         viewport
                 .setVanillaProjection(vanillaProjection)
-                .setProjection(voxyProjection)
+                .setProjection(foxyProjection)
                 .setModelView(new Matrix4f(modelView))
                 .setCamera(cameraX, cameraY, cameraZ)
                 .setScreenSize(width, height)
                 .setFogParameters(fogParameters)
                 .update();
 
-        if (VoxyClient.getOcclusionDebugState()==0) {
+        if (FoxyClient.getOcclusionDebugState()==0) {
             viewport.frameId++;
         }
 
@@ -263,7 +263,7 @@ public class VoxyRenderSystem {
         this.pipeline.preSetup(viewport);
 
         TimingStatistics.E.start();
-        if ((!VoxyClient.disableSodiumChunkRender())&&!IrisUtil.irisShadowActive()) {
+        if ((!FoxyClient.disableSodiumChunkRender())&&!IrisUtil.irisShadowActive()) {
             this.chunkBoundRenderer.render(viewport);
         } else {
             viewport.depthBoundingBuffer.clear(this.properties.inverseClearDepth());
@@ -287,10 +287,10 @@ public class VoxyRenderSystem {
             //Tick upload stream (this is ok to do here as upload ticking is just memory management)
             UploadStream.INSTANCE.tick();
 
-            while (this.renderDistanceTracker.setCenterAndProcess(viewport.cameraX, viewport.cameraZ) && VoxyClient.isFrexActive());//While FF is active, run until everything is processed
+            while (this.renderDistanceTracker.setCenterAndProcess(viewport.cameraX, viewport.cameraZ) && FoxyClient.isFrexActive());//While FF is active, run until everything is processed
             TimingStatistics.H.start();
             //Done here as is allows less gl state resetup
-            do { this.modelService.tick(900_000); } while (VoxyClient.isFrexActive() && !this.modelService.areQueuesEmpty());
+            do { this.modelService.tick(900_000); } while (FoxyClient.isFrexActive() && !this.modelService.areQueuesEmpty());
             TimingStatistics.H.stop();
         }
         GPUTiming.INSTANCE.marker();
@@ -369,11 +369,11 @@ public class VoxyRenderSystem {
         float DECREASE_PER_SECOND = 30;
         //Auto fps targeting
         if (Minecraft.getInstance().getFps() < MIN_FPS) {
-            VoxyConfig.CONFIG.subDivisionSize = Math.min(VoxyConfig.CONFIG.subDivisionSize + INCREASE_PER_SECOND / Math.max(1f, Minecraft.getInstance().getFps()), 256);
+            FoxyConfig.CONFIG.subDivisionSize = Math.min(FoxyConfig.CONFIG.subDivisionSize + INCREASE_PER_SECOND / Math.max(1f, Minecraft.getInstance().getFps()), 256);
         }
 
         if (MAX_FPS < Minecraft.getInstance().getFps() && canDecreaseSize) {
-            VoxyConfig.CONFIG.subDivisionSize = Math.max(VoxyConfig.CONFIG.subDivisionSize - DECREASE_PER_SECOND / Math.max(1f, Minecraft.getInstance().getFps()), 28);
+            FoxyConfig.CONFIG.subDivisionSize = Math.max(FoxyConfig.CONFIG.subDivisionSize - DECREASE_PER_SECOND / Math.max(1f, Minecraft.getInstance().getFps()), 28);
         }
     }
 
@@ -402,16 +402,16 @@ public class VoxyRenderSystem {
     //TODO: Make a reverse z buffer
     private static Matrix4f computeProjectionMat(Matrix4fc base) {
         //THis is a wild and insane problem to have
-        // at short render distances the vanilla terrain doesnt end up covering the 16f near plane voxy uses
+        // at short render distances the vanilla terrain doesnt end up covering the 16f near plane foxy uses
         // meaning that it explodes (due to near plane clipping).. _badly_ with the rastered culling being wrong in rare cases for the immediate
         // sections rendered after the vanilla render distance
-        float nearVoxy = getRenderDistance()<=32.0f?8f:16f;
-        nearVoxy = VoxyClient.disableSodiumChunkRender()?0.1f:nearVoxy;
+        float nearFoxy = getRenderDistance()<=32.0f?8f:16f;
+        nearFoxy = FoxyClient.disableSodiumChunkRender()?0.1f:nearFoxy;
 
         return base.mulLocal(
                 Minecraft.getInstance().gameRenderer.getGameRenderState().levelRenderState.cameraRenderState.projectionMatrix.invert(new Matrix4f()),
                 new Matrix4f()
-        ).mulLocal(makeProjectionMatrix(nearVoxy, 16*3000));
+        ).mulLocal(makeProjectionMatrix(nearFoxy, 16*3000));
     }*/
 
     private static float getGameFoV() {
@@ -427,7 +427,7 @@ public class VoxyRenderSystem {
         var extraProjection = rawMCProj.invert(new Matrix4f()).mul(base);
 
         float near = getRenderDistance()<=32.0f?8f:16f;
-        near = VoxyClient.disableSodiumChunkRender()?0.1f:near;
+        near = FoxyClient.disableSodiumChunkRender()?0.1f:near;
 
         float far = 16*3000;
 
@@ -453,7 +453,7 @@ public class VoxyRenderSystem {
     }
 
     private boolean frexStillHasWork() {
-        if (!VoxyClient.isFrexActive()) {
+        if (!FoxyClient.isFrexActive()) {
             return false;
         }
         //If frex is running we must tick everything to ensure correctness
@@ -485,7 +485,7 @@ public class VoxyRenderSystem {
         }
         {
             TimingStatistics.update();
-            debug.add("Voxy frame runtime (millis): " + TimingStatistics.dynamic.pVal() + ", " + TimingStatistics.main.pVal()+ ", " + TimingStatistics.postDynamic.pVal()+ ", " + TimingStatistics.all.pVal());
+            debug.add("Foxy frame runtime (millis): " + TimingStatistics.dynamic.pVal() + ", " + TimingStatistics.main.pVal()+ ", " + TimingStatistics.postDynamic.pVal()+ ", " + TimingStatistics.all.pVal());
             debug.add("Extra time: " + TimingStatistics.A.pVal() + ", " + TimingStatistics.B.pVal() + ", " + TimingStatistics.C.pVal() + ", " + TimingStatistics.D.pVal());
             debug.add("Extra 2 time: " + TimingStatistics.E.pVal() + ", " + TimingStatistics.F.pVal() + ", " + TimingStatistics.G.pVal() + ", " + TimingStatistics.H.pVal() + ", " + TimingStatistics.I.pVal());
         }

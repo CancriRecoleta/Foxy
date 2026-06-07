@@ -1,7 +1,7 @@
 package com.github.foxy.client;
 
 import com.github.foxy.client.compat.FlashbackCompat;
-import com.github.foxy.client.config.VoxyConfig;
+import com.github.foxy.client.config.FoxyConfig;
 import com.github.foxy.client.core.RenderResourceReuse;
 import com.github.foxy.client.mixin.sodium.AccessorSodiumWorldRenderer;
 import com.github.foxy.common.Logger;
@@ -15,7 +15,7 @@ import com.github.foxy.common.config.section.SectionStorageConfig;
 import com.github.foxy.common.config.storage.other.CompressionStorageAdaptor;
 import com.github.foxy.common.config.storage.rocksdb.RocksDBStorageBackend;
 import com.github.foxy.commonImpl.ImportManager;
-import com.github.foxy.commonImpl.VoxyInstance;
+import com.github.foxy.commonImpl.FoxyInstance;
 import com.github.foxy.commonImpl.WorldIdentifier;
 import me.jellysquid.mods.sodium.client.render.SodiumWorldRenderer;
 import net.minecraft.client.Minecraft;
@@ -23,11 +23,11 @@ import net.minecraft.world.level.storage.LevelResource;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-public class VoxyClientInstance extends VoxyInstance {
+public class FoxyClientInstance extends FoxyInstance {
     private final Config config;
     private final Path basePath;
     private final boolean noIngestOverride;
-    public VoxyClientInstance() {
+    public FoxyClientInstance() {
         super();
         var path = FlashbackCompat.getReplayStoragePath();
         this.noIngestOverride = path != null;
@@ -41,8 +41,8 @@ public class VoxyClientInstance extends VoxyInstance {
 
     @Override
     public void updateDedicatedThreads() {
-        int target = VoxyConfig.CONFIG.serviceThreads;
-        if (!VoxyConfig.CONFIG.dontUseSodiumBuilderThreads) {
+        int target = FoxyConfig.CONFIG.serviceThreads;
+        if (!FoxyConfig.CONFIG.dontUseSodiumBuilderThreads) {
             var swr = SodiumWorldRenderer.instanceNullable();
             if (swr != null) {
                 var rsm = ((AccessorSodiumWorldRenderer) swr).getRenderSectionManager();
@@ -76,7 +76,7 @@ public class VoxyClientInstance extends VoxyInstance {
 
     @Override
     public boolean isIngestEnabled(WorldIdentifier worldId) {
-        return (!this.noIngestOverride) && VoxyConfig.CONFIG.ingestEnabled;
+        return (!this.noIngestOverride) && FoxyConfig.CONFIG.ingestEnabled;
     }
 
     @Override
@@ -100,26 +100,28 @@ public class VoxyClientInstance extends VoxyInstance {
     }
 
     private static Path getBasePath() {
-        Path basePath = Minecraft.getInstance().gameDirectory.toPath().resolve(".voxy").resolve("saves");
+        Path basePath = Minecraft.getInstance().gameDirectory.toPath().resolve(".foxy").resolve("saves");
         var iserver = Minecraft.getInstance().getSingleplayerServer();
         if (iserver != null) {
-            basePath = iserver.getWorldPath(LevelResource.ROOT).resolve("voxy");
+            basePath = iserver.getWorldPath(LevelResource.ROOT).resolve("foxy");
         } else {
             var netHandle = Minecraft.getInstance().gameMode;
             if (netHandle == null) {
                 Logger.error("Network handle null");
                 basePath = basePath.resolve("UNKNOWN");
+            } else if (net.minecraft.client.Minecraft.getInstance().isConnectedToRealms()) {
+                basePath = basePath.resolve("realms");
             } else {
-                var info = net.minecraft.client.Minecraft.getInstance().getConnection().getServerData();
+                // Upstream reads gameMode.connection.getServerData(); that field is private on 1.20.1,
+                // and this runs during handleLogin before Minecraft.player is assigned, so
+                // getConnection() (== player.connection) would NPE. getCurrentServer() is public and
+                // player-independent and yields the same ServerData for a normal multiplayer join.
+                var info = net.minecraft.client.Minecraft.getInstance().getCurrentServer();
                 if (info == null) {
                     Logger.error("Server info null");
                     basePath = basePath.resolve("UNKNOWN");
                 } else {
-                    if (net.minecraft.client.Minecraft.getInstance().isConnectedToRealms()) {
-                        basePath = basePath.resolve("realms");
-                    } else {
-                        basePath = basePath.resolve(info.ip.replace(":", "_"));
-                    }
+                    basePath = basePath.resolve(info.ip.replace(":", "_"));
                 }
             }
         }

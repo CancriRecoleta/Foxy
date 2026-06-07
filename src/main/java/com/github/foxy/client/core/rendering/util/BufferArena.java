@@ -5,12 +5,12 @@ import com.github.foxy.client.core.gl.GlBuffer;
 import com.github.foxy.common.util.AllocationArena;
 import com.github.foxy.common.util.MemoryBuffer;
 import com.github.foxy.common.util.UnsafeUtil;
-import com.github.foxy.commonImpl.VoxyCommon;
+import com.github.foxy.commonImpl.FoxyCommon;
 
 import java.util.function.Consumer;
 
 public class BufferArena {
-    private static final boolean CHECK_SSBO_MAX_SIZE_CHECK = VoxyCommon.isVerificationFlagOn("checkSSBOMaxSize");
+    private static final boolean CHECK_SSBO_MAX_SIZE_CHECK = FoxyCommon.isVerificationFlagOn("checkSSBOMaxSize");
 
     private final long size;
     private final int elementSize;

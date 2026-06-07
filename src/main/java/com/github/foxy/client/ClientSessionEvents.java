@@ -1,7 +1,7 @@
 package com.github.foxy.client;
 
-import com.github.foxy.client.config.VoxyConfig;
-import com.github.foxy.commonImpl.VoxyCommon;
+import com.github.foxy.client.config.FoxyConfig;
+import com.github.foxy.commonImpl.FoxyCommon;
 
 public class ClientSessionEvents {
     public static boolean inSession = false;
@@ -11,11 +11,11 @@ public class ClientSessionEvents {
         inSession = true;
 
         //Should never try creating multiple instances via session start
-        if (VoxyCommon.getInstance() != null) throw new IllegalStateException();
+        if (FoxyCommon.getInstance() != null) throw new IllegalStateException();
 
-        if (VoxyCommon.isAvailable()) {
-            if (VoxyConfig.CONFIG.enabled) {
-                VoxyCommon.createInstance();
+        if (FoxyCommon.isAvailable()) {
+            if (FoxyConfig.CONFIG.enabled) {
+                FoxyCommon.createInstance();
             }
         }
     }
@@ -24,6 +24,6 @@ public class ClientSessionEvents {
         if (!inSession) throw new IllegalStateException("Cannot end a session while not in a session");
         inSession = false;
 
-        VoxyCommon.shutdownInstance();
+        FoxyCommon.shutdownInstance();
     }
 }

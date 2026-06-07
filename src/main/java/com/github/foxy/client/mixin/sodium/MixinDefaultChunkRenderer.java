@@ -1,7 +1,7 @@
 package com.github.foxy.client.mixin.sodium;
 
-import com.github.foxy.client.VoxyClient;
-import com.github.foxy.client.core.IGetVoxyRenderSystem;
+import com.github.foxy.client.FoxyClient;
+import com.github.foxy.client.core.IGetFoxyRenderSystem;
 import com.github.foxy.client.core.rendering.Viewport;
 import com.github.foxy.client.core.util.FogParameters;
 import com.github.foxy.client.core.util.IrisUtil;
@@ -36,8 +36,8 @@ public abstract class MixinDefaultChunkRenderer extends ShaderChunkRenderer {
     }
 
     @Inject(method = "render", at = @At(value = "HEAD"), cancellable = true)
-    private void voxy$cancelThingie(ChunkRenderMatrices matrices, CommandList commandList, ChunkRenderListIterable renderLists, TerrainRenderPass renderPass, CameraTransform camera, CallbackInfo ci) {
-        if (VoxyClient.disableSodiumChunkRender()) {
+    private void foxy$cancelThingie(ChunkRenderMatrices matrices, CommandList commandList, ChunkRenderListIterable renderLists, TerrainRenderPass renderPass, CameraTransform camera, CallbackInfo ci) {
+        if (FoxyClient.disableSodiumChunkRender()) {
             super.begin(renderPass);
             this.doRender(matrices, renderPass, camera);
             super.end(renderPass);
@@ -46,14 +46,14 @@ public abstract class MixinDefaultChunkRenderer extends ShaderChunkRenderer {
     }
 
     @Inject(method = "render", at = @At(value = "INVOKE", target = "Lme/jellysquid/mods/sodium/client/render/chunk/ShaderChunkRenderer;end(Lme/jellysquid/mods/sodium/client/render/chunk/terrain/TerrainRenderPass;)V", shift = At.Shift.BEFORE))
-    private void voxy$injectRender(ChunkRenderMatrices matrices, CommandList commandList, ChunkRenderListIterable renderLists, TerrainRenderPass renderPass, CameraTransform camera, CallbackInfo ci) {
+    private void foxy$injectRender(ChunkRenderMatrices matrices, CommandList commandList, ChunkRenderListIterable renderLists, TerrainRenderPass renderPass, CameraTransform camera, CallbackInfo ci) {
         this.doRender(matrices, renderPass, camera);
     }
 
     @Unique
     private void doRender(ChunkRenderMatrices matrices, TerrainRenderPass renderPass, CameraTransform camera) {
         if (renderPass == DefaultTerrainRenderPasses.CUTOUT) {
-            var renderer = ((IGetVoxyRenderSystem) Minecraft.getInstance().levelRenderer).voxy$getRenderSystem();
+            var renderer = ((IGetFoxyRenderSystem) Minecraft.getInstance().levelRenderer).foxy$getRenderSystem();
             if (renderer != null) {
                 Viewport<?> viewport;
                 if (IrisUtil.irisShaderPackEnabled()) {

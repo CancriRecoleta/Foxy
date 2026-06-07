@@ -1,13 +1,13 @@
 package com.github.foxy.client.mixin.minecraft;
 
-import com.github.foxy.client.VoxyClientInstance;
-import com.github.foxy.client.config.VoxyConfig;
-import com.github.foxy.client.core.IGetVoxyRenderSystem;
-import com.github.foxy.client.core.VoxyRenderSystem;
+import com.github.foxy.client.FoxyClientInstance;
+import com.github.foxy.client.config.FoxyConfig;
+import com.github.foxy.client.core.IGetFoxyRenderSystem;
+import com.github.foxy.client.core.FoxyRenderSystem;
 import com.github.foxy.client.core.util.IrisUtil;
 import com.github.foxy.common.Logger;
 import com.github.foxy.common.world.WorldEngine;
-import com.github.foxy.commonImpl.VoxyCommon;
+import com.github.foxy.commonImpl.FoxyCommon;
 import com.github.foxy.commonImpl.WorldIdentifier;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LevelRenderer;
@@ -20,37 +20,37 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(LevelRenderer.class)
-public abstract class MixinLevelRenderer implements IGetVoxyRenderSystem {
+public abstract class MixinLevelRenderer implements IGetFoxyRenderSystem {
     @Shadow private @Nullable ClientLevel level;
-    @Unique private VoxyRenderSystem renderer;
+    @Unique private FoxyRenderSystem renderer;
 
     @Override
-    public VoxyRenderSystem voxy$getRenderSystem() {
+    public FoxyRenderSystem foxy$getRenderSystem() {
         return this.renderer;
     }
 
     @Inject(method = "allChanged()V", at = @At("RETURN"))//Inject before sodium (ordering via mixin priority; Mixin 0.8.5 has no @Inject order)
-    private void voxy$reloadVoxyRenderer(CallbackInfo ci) {
-        this.voxy$shutdownRenderer();
+    private void foxy$reloadFoxyRenderer(CallbackInfo ci) {
+        this.foxy$shutdownRenderer();
         if (this.level != null) {
-            this.voxy$createRenderer();
+            this.foxy$createRenderer();
         }
     }
 
     @Inject(method = "setLevel", at = @At("HEAD"))
-    private void voxy$captureSetWorld(ClientLevel world, CallbackInfo ci) {
+    private void foxy$captureSetWorld(ClientLevel world, CallbackInfo ci) {
         if (this.level != world) {
-            this.voxy$shutdownRenderer();
+            this.foxy$shutdownRenderer();
         }
     }
 
     @Inject(method = "close", at = @At("HEAD"))
-    private void voxy$injectClose(CallbackInfo ci) {
-        this.voxy$shutdownRenderer();
+    private void foxy$injectClose(CallbackInfo ci) {
+        this.foxy$shutdownRenderer();
     }
 
     @Override
-    public void voxy$shutdownRenderer() {
+    public void foxy$shutdownRenderer() {
         if (this.renderer != null) {
             this.renderer.shutdown();
             this.renderer = null;
@@ -58,13 +58,13 @@ public abstract class MixinLevelRenderer implements IGetVoxyRenderSystem {
     }
 
     @Override
-    public void voxy$createRenderer() {
+    public void foxy$createRenderer() {
         if (this.renderer != null) throw new IllegalStateException("Cannot have multiple renderers");
-        if (!VoxyConfig.CONFIG.enabled) {
+        if (!FoxyConfig.CONFIG.enabled) {
             Logger.info("Not creating renderer due to disabled");
             return;
         }
-        if (!VoxyConfig.CONFIG.isRenderingEnabled()) {
+        if (!FoxyConfig.CONFIG.isRenderingEnabled()) {
             Logger.info("Not creating renderer due to disabled rendering");
             return;
         }
@@ -72,7 +72,7 @@ public abstract class MixinLevelRenderer implements IGetVoxyRenderSystem {
             Logger.error("Not creating renderer due to null world");
             return;
         }
-        var instance = (VoxyClientInstance)VoxyCommon.getInstance();
+        var instance = (FoxyClientInstance)FoxyCommon.getInstance();
         if (instance == null) {
             Logger.error("Not creating renderer due to null instance");
             return;
@@ -83,7 +83,7 @@ public abstract class MixinLevelRenderer implements IGetVoxyRenderSystem {
             return;
         }
         try {
-            this.renderer = new VoxyRenderSystem(world, instance.getServiceManager());
+            this.renderer = new FoxyRenderSystem(world, instance.getServiceManager());
         } catch (RuntimeException e) {
             if (IrisUtil.irisShaderPackEnabled()) {
                 IrisUtil.disableIrisShaders();

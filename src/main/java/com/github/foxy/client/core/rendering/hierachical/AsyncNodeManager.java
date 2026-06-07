@@ -22,7 +22,7 @@ import com.github.foxy.common.util.MemoryBuffer;
 import com.github.foxy.common.util.UnsafeUtil;
 import com.github.foxy.common.world.WorldEngine;
 import com.github.foxy.common.world.WorldSection;
-import com.github.foxy.commonImpl.VoxyCommon;
+import com.github.foxy.commonImpl.FoxyCommon;
 import org.lwjgl.system.MemoryUtil;
 
 import java.lang.invoke.MethodHandles;
@@ -46,7 +46,7 @@ import static org.lwjgl.opengl.GL43C.*;
 //An "async host" for a NodeManager, has specific synchonius entry and exit points
 // this is done off thread to reduce the amount of work done on the render thread, improving frame stability and reducing runtime overhead
 public class AsyncNodeManager {
-    private static final boolean VERIFY_NODE_MANAGER = VoxyCommon.isVerificationFlagOn("verifyNodeManager");
+    private static final boolean VERIFY_NODE_MANAGER = FoxyCommon.isVerificationFlagOn("verifyNodeManager");
     private static final VarHandle RESULT_HANDLE;
     private static final VarHandle RESULT_CACHE_1_HANDLE;
     private static final VarHandle RESULT_CACHE_2_HANDLE;
@@ -181,14 +181,14 @@ public class AsyncNodeManager {
             .define("INPUT_BUFFER_BINDING", 0)
             .define("OUTPUT_BUFFER1_BINDING", 1)
             .define("OUTPUT_BUFFER2_BINDING", 2)
-            .add(ShaderType.COMPUTE, "voxy:util/scatter.comp")
+            .add(ShaderType.COMPUTE, "foxy:util/scatter.comp")
             .compile();
 
     private final Shader multiMemcpy = Shader.make()
             .define("INPUT_HEADER_BUFFER_BINDING", 0)
             .define("INPUT_DATA_BUFFER_BINDING", 1)
             .define("OUTPUT_BUFFER_BINDING", 2)
-            .add(ShaderType.COMPUTE, "voxy:util/memcpy.comp")
+            .add(ShaderType.COMPUTE, "foxy:util/memcpy.comp")
             .compile();
 
     private void run() {
