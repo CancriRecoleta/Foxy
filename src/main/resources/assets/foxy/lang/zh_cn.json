@@ -33,5 +33,11 @@
   "foxy.config.general.environmental_fog.tooltip": "启用或禁用 Foxy 的环境雾。启用 Iris 光影包时不可用。",
 
   "foxy.config.general.ssao_mode": "SSAO 模式",
-  "foxy.config.general.ssao_mode.tooltip": "屏幕空间环境光遮蔽（SSAO）的模式。Auto 会在尽量减少性能影响的前提下自动选择最佳选项。启用 Iris 光影包时不可用。"
+  "foxy.config.general.ssao_mode.tooltip": "屏幕空间环境光遮蔽（SSAO）的模式。Auto 会在尽量减少性能影响的前提下自动选择最佳选项。启用 Iris 光影包时不可用。",
+
+  "foxy.config.general.debug_hud": "调试覆盖层（F3）",
+  "foxy.config.general.debug_hud.tooltip": "在 F3 调试屏幕上显示 Foxy 的版本、实例与渲染器诊断信息。",
+
+  "foxy.config.general.render_statistics": "渲染统计",
+  "foxy.config.general.render_statistics.tooltip": "采集各 LOD 层的渲染统计（层级遍历 / 渲染区块 / 可见区块 / 面数）与各阶段 GPU 计时，并显示在 F3 调试覆盖层上（需先启用调试覆盖层）。有性能开销且会重新编译 LOD 着色器，故默认关闭。"
 }

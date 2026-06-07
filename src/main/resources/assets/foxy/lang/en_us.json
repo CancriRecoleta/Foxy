@@ -33,5 +33,11 @@
   "foxy.config.general.environmental_fog.tooltip": "Enables or disables Foxy's environmental fog. Disabled while an Iris shader pack is active.",
 
   "foxy.config.general.ssao_mode": "SSAO mode",
-  "foxy.config.general.ssao_mode.tooltip": "Mode used for screen-space ambient occlusion. Auto picks the best option while limiting the performance impact. Disabled while an Iris shader pack is active."
+  "foxy.config.general.ssao_mode.tooltip": "Mode used for screen-space ambient occlusion. Auto picks the best option while limiting the performance impact. Disabled while an Iris shader pack is active.",
+
+  "foxy.config.general.debug_hud": "Debug overlay (F3)",
+  "foxy.config.general.debug_hud.tooltip": "Shows Foxy's version, instance and renderer diagnostics on the F3 debug screen.",
+
+  "foxy.config.general.render_statistics": "Render statistics",
+  "foxy.config.general.render_statistics.tooltip": "Collects per-LOD render statistics (hierarchical traversal / render-section / visible-section / quad counts) and per-pass GPU timing and shows them on the F3 debug overlay (needs the debug overlay enabled). Has a performance cost and recompiles the LOD shaders, so it is off by default."
 }

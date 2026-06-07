@@ -19,7 +19,11 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(LevelRenderer.class)
+// priority < the default 1000 so this mixin applies first and its allChanged @At("RETURN") callback runs
+// before Embeddium's WorldRendererMixin (which also injects allChanged @RETURN at default priority to
+// reload its terrain): we must recreate the Foxy renderer ahead of the Sodium/Embeddium reload. This is
+// the Mixin-0.8.5 analog of upstream's @Inject(order = 900), which Forge's Mixin 0.8.5 does not support.
+@Mixin(value = LevelRenderer.class, priority = 900)
 public abstract class MixinLevelRenderer implements IGetFoxyRenderSystem {
     @Shadow private @Nullable ClientLevel level;
     @Unique private FoxyRenderSystem renderer;
@@ -29,7 +33,7 @@ public abstract class MixinLevelRenderer implements IGetFoxyRenderSystem {
         return this.renderer;
     }
 
-    @Inject(method = "allChanged()V", at = @At("RETURN"))//Inject before sodium (ordering via mixin priority; Mixin 0.8.5 has no @Inject order)
+    @Inject(method = "allChanged()V", at = @At("RETURN"))//Inject before sodium/Embeddium — ordering enforced by the @Mixin(priority = 900) above
     private void foxy$reloadFoxyRenderer(CallbackInfo ci) {
         this.foxy$shutdownRenderer();
         if (this.level != null) {

@@ -1,10 +1,12 @@
 package com.github.foxy.client;
 
+import com.github.foxy.client.config.FoxyConfig;
 import com.github.foxy.client.core.gl.Capabilities;
 import com.github.foxy.client.core.rendering.util.SharedIndexBuffer;
 import com.github.foxy.common.Logger;
 import com.github.foxy.commonImpl.FoxyCommon;
 import net.minecraft.client.Minecraft;
+import net.minecraftforge.client.event.CustomizeGuiOverlayEvent;
 import net.minecraftforge.client.event.RegisterClientCommandsEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -28,6 +30,18 @@ public class FoxyClient {
         MinecraftForge.EVENT_BUS.addListener((RegisterClientCommandsEvent event) -> {
             if (FoxyCommon.isAvailable()) {
                 event.getDispatcher().register(FoxyCommands.register());
+            }
+        });
+
+        // 1.20.1 has no pluggable DebugScreenEntries registry (that is a 1.21 API), so Foxy's F3
+        // diagnostic lines are appended to the left column via Forge's DebugText overlay event.
+        // ForgeGui posts this event every frame the HUD renders (NOT only on F3 — only the vanilla
+        // lines are gated), so we gate on options.renderDebug to restrict Foxy's lines to the F3
+        // debug screen, matching upstream's F3-only display. The debugHud config toggle (default on)
+        // lets users hide them entirely.
+        MinecraftForge.EVENT_BUS.addListener((CustomizeGuiOverlayEvent.DebugText event) -> {
+            if (FoxyConfig.CONFIG.debugHud && Minecraft.getInstance().options.renderDebug) {
+                DebugEntries.appendDebugLines(event.getLeft());
             }
         });
     }

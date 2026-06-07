@@ -3,7 +3,9 @@ package com.github.foxy.client.config;
 import com.google.gson.FieldNamingPolicy;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.github.foxy.client.RenderStatistics;
 import com.github.foxy.client.core.SSAO;
+import com.github.foxy.client.core.util.GPUTiming;
 import com.github.foxy.common.Logger;
 import com.github.foxy.common.util.cpu.CpuLayout;
 import com.github.foxy.commonImpl.FoxyCommon;
@@ -25,8 +27,10 @@ public class FoxyConfig {
 
     public static FoxyConfig CONFIG = loadOrCreate();
     static {
-        // Apply the persisted logging toggle as soon as the config is loaded.
+        // Apply the persisted logging + debug toggles as soon as the config is loaded, so a saved
+        // render-statistics flag is honoured before the first renderer (and its shaders) is built.
         CONFIG.applyLogging();
+        CONFIG.applyDebug();
     }
 
     public boolean enabled = true;
@@ -37,6 +41,8 @@ public class FoxyConfig {
     public boolean useEnvironmentalFog = true;
     public boolean dontUseSodiumBuilderThreads = false;
     public boolean loggingEnabled = true;
+    public boolean debugHud = true;
+    public boolean renderStatistics = false;
     public String ssaoMode;
 
     public SSAO.SSAOMode getSSAOMode() {
@@ -55,6 +61,15 @@ public class FoxyConfig {
     // error popup via Logger.SHUTUP.
     public void applyLogging() {
         Logger.SHUTUP = !this.loggingEnabled;
+    }
+
+    // Mirror the persisted render-statistics toggle onto the global debug switches. When on, Foxy
+    // collects per-LOD render statistics (RenderStatistics) and per-pass GPU timing (GPUTiming) and
+    // surfaces them on the F3 overlay. HAS_STATISTICS is a compile-time shader define, so a renderer
+    // reload is required for a change to take effect (the config GUI adds RENDER_RELOAD for this).
+    public void applyDebug() {
+        RenderStatistics.enabled = this.renderStatistics;
+        GPUTiming.INSTANCE.setEnabled(this.renderStatistics);
     }
 
 

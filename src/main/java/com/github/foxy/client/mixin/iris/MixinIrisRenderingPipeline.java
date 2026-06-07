@@ -6,6 +6,8 @@ import com.github.foxy.client.iris.IGetIrisFoxyPipelineData;
 import com.github.foxy.client.iris.IGetFoxyPatchData;
 import com.github.foxy.client.iris.IrisShaderPatch;
 import com.github.foxy.client.iris.IrisFoxyRenderPipelineData;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.irisshaders.iris.gl.buffer.ShaderStorageBufferHolder;
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
 import net.irisshaders.iris.shaderpack.programs.ProgramSet;
@@ -30,18 +32,25 @@ public class MixinIrisRenderingPipeline implements IGetFoxyPatchData, IGetIrisFo
     // Forge's Mixin 0.8.5 forbids @Inject into a constructor at any non-RETURN instruction
     // ("Cannot inject into constructors at non-return instructions"), so the upstream pair of
     // INVOKE-point injectors (capture patchData at resetPrintState, then build the pipeline at
-    // createSetupComputes) is merged into a single @At("TAIL") callback that runs once the pipeline is
-    // fully constructed. Order is therefore guaranteed (patchData is set before it is read), and the
-    // @Shadow ctor fields customUniforms/shaderStorageBufferHolder are fully assigned by TAIL.
-    // (Upstream's Fabric Mixin permits the mid-ctor injects; Forge's does not.)
-    @Inject(method = "<init>", at = @At("TAIL"))
-    private void foxy$injectPipeline(ProgramSet programSet, CallbackInfo ci) {
+    // createSetupComputes) cannot be ported verbatim. A naive @At("TAIL") works for the common case
+    // but runs AFTER the ctor's customUniforms.optimise() (IrisRenderingPipeline.<init> line 492),
+    // which prunes any custom uniform not yet registered in CustomUniforms.locationMap — including
+    // ones referenced ONLY by the Foxy LOD shader patch — so they would never get a location and read
+    // as 0 in the LOD shader. To preserve upstream's ordering on Forge we instead @WrapOperation the
+    // optimise() call (MixinExtras wraps a method INVOKE, which IS permitted inside constructors) and
+    // build the Foxy pipeline FIRST: buildPipeline -> createUniformSet -> mapholderToPass registers the
+    // patch into locationMap, so optimise() then sees those uniforms as used and keeps them. customUniforms
+    // (assigned line 263) and shaderStorageBufferHolder (assigned before line 489) are both set by this
+    // point, and patchData is read from the programSet argument (constant for the whole ctor).
+    @WrapOperation(method = "<init>", at = @At(value = "INVOKE", target = "Lnet/irisshaders/iris/uniforms/custom/CustomUniforms;optimise()V"))
+    private void foxy$buildPipelineBeforeOptimise(CustomUniforms instance, Operation<Void> original, ProgramSet programSet) {
         if (IrisUtil.SHADER_SUPPORT) {
             this.patchData = ((IGetFoxyPatchData) programSet).foxy$getPatchData();
         }
         if (this.patchData != null) {
             this.pipeline = IrisFoxyRenderPipelineData.buildPipeline((IrisRenderingPipeline)(Object)this, this.patchData, this.customUniforms, this.shaderStorageBufferHolder);
         }
+        original.call(instance);
     }
 
     // Upstream Foxy (MC 1.21) injects before GlStateManager._activeTexture in beginLevelRendering;

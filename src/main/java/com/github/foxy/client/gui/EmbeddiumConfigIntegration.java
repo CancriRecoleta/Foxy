@@ -102,7 +102,10 @@ public final class EmbeddiumConfigIntegration {
             }
         }
 
-        if (PENDING.contains(Hook.UPDATE_THREADS)) {
+        // Mirror upstream's "voxy:update_threads" conflicts-with "voxy:enabled" de-dup: when enabled also
+        // changed, the recreate path already calls updateDedicatedThreads() (foxy$createRenderer), so skip
+        // the redundant call here.
+        if (PENDING.contains(Hook.UPDATE_THREADS) && !PENDING.contains(Hook.ENABLED_CHANGED)) {
             var instance = FoxyCommon.getInstance();
             if (instance != null) instance.updateDedicatedThreads();
         }
@@ -152,6 +155,24 @@ public final class EmbeddiumConfigIntegration {
                         cfg -> cfg.loggingEnabled,
                         (cfg, v) -> { cfg.loggingEnabled = v; cfg.applyLogging(); },
                         null))
+                .build());
+
+        // Debug / diagnostics (was upstream's F3 voxy:version + voxy:gpu_debug entries; on 1.20.1
+        // there is no DebugScreenEntries registry so they become config toggles instead).
+        // debug_hud: show Foxy's version/instance/renderer lines on F3 — always toggleable (like
+        //   logging) so status is visible even when Foxy is off; read live, no reload needed.
+        // render_statistics: also collect the heavy per-LOD statistics + per-pass GPU timing and
+        //   compile the HAS_STATISTICS shader path. applyDebug() flips the global flags and a
+        //   RENDER_RELOAD recreates the renderer so the shaders recompile. Gated by enabled.
+        groups.add(OptionGroup.createBuilder()
+                .add(boolOption("debug_hud", "foxy.config.general.debug_hud",
+                        cfg -> cfg.debugHud,
+                        (cfg, v) -> cfg.debugHud = v,
+                        null))
+                .add(boolOption("render_statistics", "foxy.config.general.render_statistics",
+                        cfg -> cfg.renderStatistics,
+                        (cfg, v) -> { cfg.renderStatistics = v; cfg.applyDebug(); PENDING.add(Hook.RENDER_RELOAD); },
+                        enabledGate))
                 .build());
 
         // --- rendering / quality (was the "Rendering" page). The separate "Foxy rendering" toggle was
